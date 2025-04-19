@@ -31,26 +31,30 @@ object ListViewFrame: TListViewFrame
     TabOrder = 1
     object SearchPanel: TPanel
       Left = 1
-      Top = -1
+      Top = 1
       Width = 298
-      Height = 22
-      Align = alBottom
+      Height = 20
+      Align = alClient
       TabOrder = 0
       Visible = False
+      ExplicitTop = -1
+      ExplicitHeight = 22
       object SearchLabel: TLabel
         Left = 1
         Top = 1
         Width = 47
-        Height = 15
+        Height = 18
         Align = alLeft
+        Alignment = taCenter
         Caption = ' Search : '
         Layout = tlCenter
+        ExplicitHeight = 15
       end
       object SearchEdit: TEdit
         Left = 48
         Top = 1
         Width = 249
-        Height = 20
+        Height = 18
         Align = alClient
         TabOrder = 0
         Text = 'SearchEdit'

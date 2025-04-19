@@ -3,14 +3,55 @@ unit ListViewFrameUnit;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Winapi.ShellAPI, Winapi.CommCtrl, System.IOUtils,
-  Winapi.ShlObj, System.Math, System.StrUtils, Vcl.ExtCtrls, System.Generics.Collections, System.Generics.Defaults,
-  Vcl.Clipbrd, System.Win.ComObj, Winapi.ActiveX, Vcl.ComCtrls, Vcl.Menus, MPShellUtilities, System.UITypes,
-  SortSelectUnit, ExplorerUtils, OverwriteConfirm, System.DateUtils, InputUnit, System.Types, FileMonitor,
-  System.SyncObjs, System.ImageList, Vcl.ImgList, Vcl.Tabs, BookmarkManager, System.JSON,
-  ApplicationSettings, FileTransfer, System.RegularExpressions, DragDrop,
-  DropSource, DragDropFile, VirtualShellNewMenu, Winapi.Imm;
+  Winapi.ActiveX,
+  Winapi.CommCtrl,
+  Winapi.Imm,
+  Winapi.Messages,
+  Winapi.ShellAPI,
+  Winapi.ShlObj,
+  Winapi.Windows,
+  System.Classes,
+  System.DateUtils,
+  System.Generics.Collections,
+  System.Generics.Defaults,
+  System.IOUtils,
+  System.ImageList,
+  System.JSON,
+  System.Math,
+  System.RegularExpressions,
+  System.StrUtils,
+  System.SyncObjs,
+  System.SysUtils,
+  System.Types,
+  System.UITypes,
+  System.Variants,
+  System.Win.ComObj,
+  Vcl.Clipbrd,
+  Vcl.ComCtrls,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.ImgList,
+  Vcl.Menus,
+  Vcl.StdCtrls,
+  Vcl.Tabs,
+  // My Units
+  ExplorerUtils,
+  ApplicationSettings,
+  BookmarkManager,
+  FileMonitor,
+  FileTransfer,
+  InputUnit,
+  OverwriteConfirm,
+  SortSelectUnit,
+  // Other Libraries
+  DragDrop,
+  DragDropFile,
+  DropSource,
+  MPShellUtilities,
+  VirtualShellNewMenu;
 
 const
   SHARE_INFO_LEVEL_1 = 1;
@@ -126,6 +167,7 @@ type
     function OverwritePromptEvent(const SrcFile: string;
       var DestFile: string): TOverwritePromptResult;
     function SelectedItemsArray: TArray<string>;
+    procedure AdjustPanelHeightToEditFont(Edit: TEdit; Panel: TPanel);
     procedure BookmarkMenuClick(Sender: TObject);
     procedure BookmarksToPopupMenu(const Collection: TBookmarkCollection;
       PopupMenu: TPopupMenu);
@@ -338,6 +380,23 @@ begin
   FTabList.Add(TabInfo);
   TabSet.Tabs.Add(Path);
   TabSet.TabIndex := TabSet.Tabs.Count - 1;
+end;
+
+procedure TListViewFrame.AdjustPanelHeightToEditFont(Edit: TEdit;
+  Panel: TPanel);
+var
+  TextHeight: Integer;
+  TempCanvas: TBitmap;
+
+begin
+  TempCanvas := TBitmap.Create;
+  try
+    TempCanvas.Canvas.Font := Edit.Font;
+    TextHeight := TempCanvas.Canvas.TextHeight('‚ ');
+    Panel.Height := TextHeight + 12;
+  finally
+    TempCanvas.Free;
+  end;
 end;
 
 procedure TListViewFrame.BookmarkMenuClick(Sender: TObject);
@@ -612,6 +671,7 @@ begin
   FTabList := TTabList.Create;
   LoadBookmarks;
   LoadConfig;
+  AdjustPanelHeightToEditFont(SearchEdit, StatusPanel);
   BookmarksToPopupMenu(FBookmarks, BookmarkMenu);
   // icon
   InitCommonControls;
@@ -1517,14 +1577,19 @@ begin
   case Key of
     VK_ESCAPE:
     begin
-      // SetIMEToHalfWidth
+      SetImeToAlphabetNumeric(FileListView.Handle);
       SearchPanel.Visible := False;
       FileListView.SetFocus;
     end;
     VK_RETURN:
     begin
       if FIsFilteringItems then
-        ChangeDirectory(FCurrentDirectory, SearchEdit.Text);
+        ChangeDirectory(FCurrentDirectory, SearchEdit.Text)
+      else
+      begin
+        SearchPanel.Visible := False;
+        FileListView.SetFocus;
+      end;
     end;
   end;
 end;
@@ -1645,6 +1710,7 @@ end;
 
 procedure TListViewFrame.ShowSearchBox;
 begin
+  FIsFilteringItems := False;
   SearchPanel.Visible := True;
   SearchLabel.Caption := ' Search : ';
   SearchEdit.Text := '';

@@ -163,6 +163,10 @@
         <DCCReference Include="BookmarkManager.pas"/>
         <DCCReference Include="ApplicationSettings.pas"/>
         <DCCReference Include="FileTransfer.pas"/>
+        <RcItem Include="..\..\res\ico\shell32_275.ico">
+            <ResourceType>ICON</ResourceType>
+            <ResourceId>Icon_1</ResourceId>
+        </RcItem>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -189,6 +193,12 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="4">
+                <DeployFile LocalName="..\..\res\ico\shell32_275.ico" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32_Debug\dw.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>dw.exe</RemoteName>
