@@ -6,8 +6,8 @@
         "Width": 1408
     },
     "CurrentDirs": {
-        "L": "C:\\Users\\coppepan",
-        "R": "D:\\Dungeon Travellers 2\\Data"
+        "L": "C:\\Users\\coppepan\\Downloads",
+        "R": "C:\\Users\\coppepan\\Documents\\PPSSPP\\PSP\\GAME"
     },
     "WindowConfig": {
         "AddressBar": {
@@ -35,7 +35,7 @@
         "SearchBox": {
             "Font": {
                 "Name": "Ricty Diminished",
-                "Size": 12
+                "Size": 10
             },
             "Colors": {
                 "Background": -16777215,

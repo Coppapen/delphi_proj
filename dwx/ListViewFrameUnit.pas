@@ -1293,6 +1293,10 @@ var
   i: Integer;
 
 begin
+  if FFileList.Count = 0 then
+    Exit;
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
   FSelectedItems.Clear;
   for i := 0 to FFileList.Count - 1 do
   begin
@@ -1748,6 +1752,8 @@ var
 
 begin
   if FFileList.Count = 0 then
+    Exit;
+  if FFileList[0].FileName = PARENT_DIR then
     Exit;
   p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
   SortSelectForm.Init(SortSettings);

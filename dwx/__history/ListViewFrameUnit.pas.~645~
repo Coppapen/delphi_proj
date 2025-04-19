@@ -3,14 +3,55 @@ unit ListViewFrameUnit;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Winapi.ShellAPI, Winapi.CommCtrl, System.IOUtils,
-  Winapi.ShlObj, System.Math, System.StrUtils, Vcl.ExtCtrls, System.Generics.Collections, System.Generics.Defaults,
-  Vcl.Clipbrd, System.Win.ComObj, Winapi.ActiveX, Vcl.ComCtrls, Vcl.Menus, MPShellUtilities, System.UITypes,
-  SortSelectUnit, ExplorerUtils, OverwriteConfirm, System.DateUtils, InputUnit, System.Types, FileMonitor,
-  System.SyncObjs, System.ImageList, Vcl.ImgList, Vcl.Tabs, BookmarkManager, System.JSON,
-  ApplicationSettings, FileTransfer, System.RegularExpressions, DragDrop,
-  DropSource, DragDropFile, VirtualShellNewMenu;
+  Winapi.ActiveX,
+  Winapi.CommCtrl,
+  Winapi.Imm,
+  Winapi.Messages,
+  Winapi.ShellAPI,
+  Winapi.ShlObj,
+  Winapi.Windows,
+  System.Classes,
+  System.DateUtils,
+  System.Generics.Collections,
+  System.Generics.Defaults,
+  System.IOUtils,
+  System.ImageList,
+  System.JSON,
+  System.Math,
+  System.RegularExpressions,
+  System.StrUtils,
+  System.SyncObjs,
+  System.SysUtils,
+  System.Types,
+  System.UITypes,
+  System.Variants,
+  System.Win.ComObj,
+  Vcl.Clipbrd,
+  Vcl.ComCtrls,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.ImgList,
+  Vcl.Menus,
+  Vcl.StdCtrls,
+  Vcl.Tabs,
+  // My Units
+  ExplorerUtils,
+  ApplicationSettings,
+  BookmarkManager,
+  FileMonitor,
+  FileTransfer,
+  InputUnit,
+  OverwriteConfirm,
+  SortSelectUnit,
+  // Other Libraries
+  DragDrop,
+  DragDropFile,
+  DropSource,
+  MPShellUtilities,
+  VirtualShellNewMenu;
 
 const
   SHARE_INFO_LEVEL_1 = 1;
@@ -80,10 +121,6 @@ type
       Shift: TShiftState);
     procedure FileListViewKeyUp(Sender: TObject; var Key: Word;
       Shift: TShiftState);
-    procedure SearchEditKeyDown(Sender: TObject; var Key: Word;
-      Shift: TShiftState);
-    procedure SearchEditKeyUp(Sender: TObject; var Key: Word;
-      Shift: TShiftState);
     procedure FrameEnter(Sender: TObject);
     procedure FrameExit(Sender: TObject);
     procedure FrameResize(Sender: TObject);
@@ -96,6 +133,10 @@ type
       var Allow: Boolean);
     procedure NewMenuAfterFileCreate(Sender: TMenu;
       const NewMenuItem: TVirtualShellNewItem; const FileName: string);
+    procedure SearchEditKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure SearchEditKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
   protected
     procedure WMKeyDown(var Msg: TWMKeyDown); message CM_CHILDKEY;
   private
@@ -109,6 +150,7 @@ type
     FIsFilteringItems: Boolean;
     FFileList: TList<TDataListItem>;
     FIsFocused: Boolean;
+    FIsShowBookmarksInOtherWindow: Boolean;
     FIsShowHiddenFiles: Boolean;
     FListItemsSelected: TArray<Boolean>;
     FListViewColors: TListViewColors;
@@ -125,13 +167,16 @@ type
     function OverwritePromptEvent(const SrcFile: string;
       var DestFile: string): TOverwritePromptResult;
     function SelectedItemsArray: TArray<string>;
+    procedure AdjustPanelHeightToEditFont(Edit: TEdit; Panel: TPanel);
     procedure BookmarkMenuClick(Sender: TObject);
     procedure BookmarksToPopupMenu(const Collection: TBookmarkCollection;
       PopupMenu: TPopupMenu);
     procedure ChangeShowHiddenFiles;
     procedure ClearFileList;
     procedure CloseTab;
-    procedure CopyPathToClipboard(const Path: string);
+    procedure CopyDirectoryPathToClipboard;
+    procedure CopyFileNameToClipboard;
+    procedure CopyPathToClipboard;
     procedure CopyProgressEvent(Sender: TObject; FileName: string;
       Percent: Integer);
     procedure CreateNewDirectory;
@@ -162,6 +207,7 @@ type
     procedure ScrollToItem(const ItemIndex: Integer);
     procedure SelectItem(const ItemIndex: Integer);
     procedure ShowBookmarks;
+    procedure ShowBookmarksInOtherWindow;
     procedure ShowContextMenu;
     procedure ShowCreateNewFileMenu;
     procedure ShowFilteringBox;
@@ -336,6 +382,23 @@ begin
   TabSet.TabIndex := TabSet.Tabs.Count - 1;
 end;
 
+procedure TListViewFrame.AdjustPanelHeightToEditFont(Edit: TEdit;
+  Panel: TPanel);
+var
+  TextHeight: Integer;
+  TempCanvas: TBitmap;
+
+begin
+  TempCanvas := TBitmap.Create;
+  try
+    TempCanvas.Canvas.Font := Edit.Font;
+    TextHeight := TempCanvas.Canvas.TextHeight('あ');
+    Panel.Height := TextHeight + 12;
+  finally
+    TempCanvas.Free;
+  end;
+end;
+
 procedure TListViewFrame.BookmarkMenuClick(Sender: TObject);
 var
   Path: string;
@@ -345,8 +408,12 @@ begin
   Path := TMenuItem(Sender).Hint;
   TabInfo.Path := Path;
   TabInfo.ItemIndex := TabSet.TabIndex;
-  UpdateTab(TabInfo);
-  ChangeDirectory(Path);
+  if not FIsShowBookmarksInOtherWindow then
+  begin
+    UpdateTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+    MainForm.GoToBookmarkInUnfocusedFrame(Path);
 end;
 
 procedure TListViewFrame.BookmarksToPopupMenu(const Collection: TBookmarkCollection;
@@ -502,7 +569,37 @@ begin
   if not HasVerticalScrollBar(lv) then
     TotalWidth := TotalWidth - ScrollBarWidth;
   if TotalWidth > lv.Columns[1].Width then
-    lv.Columns[0].Width := TotalWidth - lv.Columns[1].Width;
+    lv.Columns[0].Width := TotalWidth - lv.Columns[1].Width - 10;
+end;
+
+procedure TListViewFrame.CopyDirectoryPathToClipboard;
+begin
+  Clipboard.AsText := FCurrentDirectory;
+end;
+
+procedure TListViewFrame.CopyFileNameToClipboard;
+var
+  List: TStringList;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+  begin
+    Clipboard.AsText := ExtractFileName(CurrentLineItemPath);
+    MainForm.AddOperationHistory(
+      Format('パスをクリップボードにコピーしました [ %s ]', [CurrentLineItemPath]));
+  end else
+  begin
+    List := TStringList.Create;
+    try
+      for i := 0 to FSelectedItems.Count - 1 do
+        List.Add(ExtractFileName(FSelectedItems[i].FileName));
+      Clipboard.AsText := List.Text;
+    finally
+      List.Free;
+    end;
+    MainForm.AddOperationHistory('パスをクリップボードにコピーしました');
+  end;
 end;
 
 procedure TListViewFrame.CopyOrMoveFiles(const DestFolder: string;
@@ -523,11 +620,29 @@ begin
   FCopyWorker.Start;
 end;
 
-procedure TListViewFrame.CopyPathToClipboard(const Path: string);
+procedure TListViewFrame.CopyPathToClipboard;
+var
+  List: TStringList;
+  i: Integer;
+
 begin
-  Clipboard.AsText := Path;
-  MainForm.AddOperationHistory(Format('パスをクリップボードにコピーしました [ %s ]',
-    [Path]));
+  if FSelectedItems.Count = 0 then
+  begin
+    Clipboard.AsText := CurrentLineItemPath;
+    MainForm.AddOperationHistory(
+      Format('パスをクリップボードにコピーしました [ %s ]', [CurrentLineItemPath]));
+  end else
+  begin
+    List := TStringList.Create;
+    try
+      for i := 0 to FSelectedItems.Count - 1 do
+        List.Add(FSelectedItems[i].FileName);
+      Clipboard.AsText := List.Text;
+    finally
+      List.Free;
+    end;
+    MainForm.AddOperationHistory('パスをクリップボードにコピーしました');
+  end;
 end;
 
 procedure TListViewFrame.CopyProgressEvent(Sender: TObject; FileName: string;
@@ -556,6 +671,7 @@ begin
   FTabList := TTabList.Create;
   LoadBookmarks;
   LoadConfig;
+  AdjustPanelHeightToEditFont(SearchEdit, StatusPanel);
   BookmarksToPopupMenu(FBookmarks, BookmarkMenu);
   // icon
   InitCommonControls;
@@ -583,6 +699,7 @@ end;
 procedure TListViewFrame.CreateNewDirectory;
 var
   NewDirName, Path: string;
+  Index: Integer;
   p: TPoint;
 
 begin
@@ -606,13 +723,16 @@ begin
       MainForm.AddOperationHistory(Format('新規フォルダを作成しました [ %s ]',
         [NewDirName]));
       Reload;
-      FileListView.ItemIndex := IndexOfFileName(Path);
+      Index := IndexOfFileName(Path);
+      FileListView.ItemIndex := Index;
+      ScrollToItem(Index);
     end else
     begin
       MainForm.AddOperationHistory(Format('新規フォルダを作成に失敗しました [ %s ]',
         [NewDirName]));
     end;
   end;
+  SetImeToAlphabetNumeric(Self.Handle);
 end;
 
 function TListViewFrame.CurrentLineItemPath: string;
@@ -626,6 +746,8 @@ var
   Items: TArray<string>;
 
 begin
+  if FSelectedItems.Count = 0 then
+    Exit;
   MainForm.AddOperationHistory('削除を開始します');
   if Application.MessageBox('削除してもよろしいですか', '確認',
     MB_YESNO or MB_ICONQUESTION or MB_DEFBUTTON2) = IDYES then
@@ -733,7 +855,7 @@ end;
 
 procedure TListViewFrame.FileChange(Sender: TObject);
 begin
-
+  Reload;
 end;
 
 procedure TListViewFrame.FileListAddItems(const Directory: string; Filter: string);
@@ -855,6 +977,7 @@ end;
 procedure TListViewFrame.FileListViewData(Sender: TObject; Item: TListItem);
 const
   Ellipsis = '.. ';
+  ColumnWidthMargin = 20;
 
 var
   Index: Integer;
@@ -871,7 +994,7 @@ begin
     if not TDirectory.Exists(FileName) and (Length(Ext) <= 5) then
       FileName := ChangeFileExt(FileName, '');
     lv := FileListView;
-    if lv.Canvas.TextWidth(FileName) > lv.Columns[0].Width - 10 then
+    if lv.Canvas.TextWidth(FileName) > lv.Columns[0].Width - ColumnWidthMargin then
     begin
       while lv.Canvas.TextWidth(FileName + Ellipsis) > lv.Columns[0].Width do
       begin
@@ -923,7 +1046,7 @@ begin
       Ord('H'): ShowHistory;
       Ord('J'): ShowBookmarks;
       Ord('N'): ShowCreateNewFileMenu;
-      Ord('P'): CopyPathToClipboard(ExtractFileName(CurrentLineItemPath));
+      Ord('P'): CopyFileNameToClipboard;
       Ord('R'): RenameItem;
       Ord('S'): Sort;
       Ord('T'): OpenInNewTab;
@@ -940,7 +1063,8 @@ begin
   begin
     case Key of
       Ord('F'): ShowFilteringBox;
-      Ord('P'): CopyPathToClipboard(CurrentLineItemPath);
+      Ord('J'): ShowBookmarksInOtherWindow;
+      Ord('P'): CopyPathToClipboard;
     end;
   end;
   if Shift = [ssShift] then
@@ -954,7 +1078,7 @@ begin
   begin
     case Key of
       Ord('N'): CreateNewDirectory;
-      Ord('P'): CopyPathToClipboard(FCurrentDirectory);
+      Ord('P'): CopyDirectoryPathToClipboard;
       Ord('S'): ChangeShowHiddenFiles;
     end;
   end;
@@ -1254,6 +1378,7 @@ begin
   Index := IndexOfFileName(FileName);
   FileListView.ItemIndex := Index;
   ScrollToItem(Index);
+  SetImeToAlphabetNumeric(Self.Handle);
 end;
 
 procedure TListViewFrame.NewMenuCreateNewFile(Sender: TMenu;
@@ -1280,13 +1405,10 @@ begin
     NewFilePath := GetUniqueFileName(NewFilePath);
     Path := ExtractFilePath(NewFilePath);
     FileName := ExtractFileName(NewFilePath);
-    MainForm.AddOperationHistory(
-      Format('新規ファイルを作成しました [ %s ]', [NewFilePath]));
-  end else
-  begin
-    MainForm.AddOperationHistory(
-      Format('新規ファイルを作成しました [ %s ]', [NewFilePath]));
+    MainForm.AddOperationHistory('指定したファイル名は既に存在するので変更しました');
   end;
+  MainForm.AddOperationHistory(
+    Format('新規ファイルを作成しました [ %s ]', [NewFilePath]));
 end;
 
 procedure TListViewFrame.OnCopyWorkerTerminated(Sender: TObject);
@@ -1309,6 +1431,7 @@ begin
     Reload;
   end else
     MainForm.AddOperationHistory('キャンセルされました');
+  MainForm.ProgressBar.Position := 0;
   FDeleteWorker := nil;
 end;
 
@@ -1403,6 +1526,7 @@ var
   SrcFile: string;
   DirName: string;
   NewName, OldName: string;
+  Index: Integer;
   p: TPoint;
 
 begin
@@ -1424,10 +1548,14 @@ begin
   NewName := InputForm.InputText;
   if DoFileOperation(SrcFile, DirName + NewName, foFileRename) then
   begin
-    MainForm.AddOperationHistory(Format('リネームしました [ %s ]', [SrcFile]));
     Reload;
+    Index := IndexOfFileName(DirName + NewName);
+    FileListView.ItemIndex := Index;
+    ScrollToItem(Index);
+    MainForm.AddOperationHistory(Format('リネームしました [ %s ]', [SrcFile]));
   end else
     MainForm.AddOperationHistory(Format('リネームに失敗しました [ %s ]', [SrcFile]));
+  SetImeToAlphabetNumeric(Self.Handle);
 end;
 
 procedure TListViewFrame.ScrollToItem(const ItemIndex: Integer);
@@ -1449,14 +1577,19 @@ begin
   case Key of
     VK_ESCAPE:
     begin
-      // SetIMEToHalfWidth
+      SetImeToAlphabetNumeric(FileListView.Handle);
       SearchPanel.Visible := False;
       FileListView.SetFocus;
     end;
     VK_RETURN:
     begin
       if FIsFilteringItems then
-        ChangeDirectory(FCurrentDirectory, SearchEdit.Text);
+        ChangeDirectory(FCurrentDirectory, SearchEdit.Text)
+      else
+      begin
+        SearchPanel.Visible := False;
+        FileListView.SetFocus;
+      end;
     end;
   end;
 end;
@@ -1501,6 +1634,17 @@ var
   p: TPoint;
 
 begin
+  FIsShowBookmarksInOtherWindow := False;
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  BookmarkMenu.Popup(p.X, p.Y);
+end;
+
+procedure TListViewFrame.ShowBookmarksInOtherWindow;
+var
+  p: TPoint;
+
+begin
+  FIsShowBookmarksInOtherWindow := True;
   p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
   BookmarkMenu.Popup(p.X, p.Y);
 end;
@@ -1515,8 +1659,6 @@ begin
   if FileListView.ItemIndex = - 1 then
     Exit;
   p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
-  p.Y := p.Y + FileImageList.Height * (FileListView.ItemIndex - FileListView.TopItem.Index);
-  p := ClientToScreen(p);
   FileName := FFileList[FileListView.ItemIndex].FileName;
   NameSpace := TNamespace.CreateFromFileName(FileName);
   try
@@ -1568,6 +1710,7 @@ end;
 
 procedure TListViewFrame.ShowSearchBox;
 begin
+  FIsFilteringItems := False;
   SearchPanel.Visible := True;
   SearchLabel.Caption := ' Search : ';
   SearchEdit.Text := '';
