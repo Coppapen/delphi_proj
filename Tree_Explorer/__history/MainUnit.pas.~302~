@@ -1,0 +1,236 @@
+unit MainUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.JumpList, Vcl.ExtCtrls, System.Generics.Collections,
+  System.Generics.Defaults, System.Types, System.Win.ComObj, Winapi.ActiveX, Winapi.CommCtrl,
+  System.IOUtils, VirtualExplorerTree, Vcl.Themes, Vcl.Styles, System.Contnrs,
+  System.ImageList, Vcl.ImgList, Winapi.ShellAPI;
+
+const
+  QuickAccess = 'shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}';
+
+type
+  PQuickAccessItem = ^TQuickAccessItem;
+  TQuickAccessItem = record
+    Display : string;
+    FullPath: string;
+  end;
+
+  TMainForm = class(TForm)
+    TrayIcon1: TTrayIcon;
+    PopupMenu1: TPopupMenu;
+    ImageList1: TImageList;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure N1Click(Sender: TObject);
+    procedure N2Click(Sender: TObject);
+    procedure PopupMenu1Popup(Sender: TObject);
+  private
+    { Private 宣言 }
+    FFormList: TObjectList;
+    FHotKeyID: Integer;
+    FMenuInitialItemCount: Integer;
+    procedure PopupMenuItemClick(Sender: TObject);
+    procedure SetHotKey;
+    procedure WMHotKey(var message: TMessage); message WM_HOTKEY;
+    procedure WMSetText(var Msg: TMessage); message WM_SYSCOMMAND;
+  public
+    { Public 宣言 }
+    function ExplorerFormCount: Integer;
+    procedure CreateNewForm(const Command: string); overload;
+    procedure CreateNewForm(const RootFolder: TRootFolder); overload;
+    procedure DeleteListItem(Form: TForm);
+  end;
+
+  // Utils
+  procedure GetQuickAccess(var List: TList<TQuickAccessItem>);
+
+var
+  MainForm: TMainForm;
+
+implementation
+
+uses
+  SubUnit;
+
+{$R *.dfm}
+
+procedure TMainForm.CreateNewForm(const Command: string);
+var
+  NewForm: TExplorerForm;
+
+begin
+  if (TDirectory.Exists(Command)) or (Command = 'root') then
+  begin
+    NewForm := TExplorerForm.Create(Self);
+    NewForm.SetRootFolder(Command);
+    NewForm.Show;
+    SetForegroundWindow(NewForm.Handle);
+  end;
+end;
+
+procedure TMainForm.CreateNewForm(const RootFolder: TRootFolder);
+var
+  NewForm: TExplorerForm;
+
+begin
+  NewForm := TExplorerForm.Create(Self);
+  NewForm.SetRootFolder(RootFolder);
+  NewForm.Show;
+  FFormList.Add(NewForm);
+  SetForegroundWindow(NewForm.Handle);
+end;
+
+procedure TMainForm.DeleteListItem(Form: TForm);
+begin
+  var i := FFormList.IndexOf(Form);
+  FFormList.Delete(i);
+end;
+
+function TMainForm.ExplorerFormCount: Integer;
+begin
+  Result := FFormList.Count;
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+begin
+  FFormList := TObjectList.Create;
+  with TrayIcon1 do
+  begin
+    Icon := Application.Icon;
+    Hint := ExtractFileName(ChangeFileExt(Application.ExeName, ''));
+  end;
+  SetHotKey;
+  if (ParamCount <> 0) then
+  begin
+    var Path := StringReplace(ParamStr(1), '"', '', [rfReplaceAll]);
+    CreateNewForm(Path.Trim);
+  end;
+  FMenuInitialItemCount := PopupMenu1.Items.Count;
+end;
+
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  FFormList.Free;
+  UnRegisterHotKey(Handle, 0);
+end;
+
+procedure TMainForm.WMSetText(var Msg: TMessage);
+begin
+  inherited;
+  if (caption = 'NewExplorer') then
+    CreateNewForm(TRootFolder.rfDrives);
+end;
+
+procedure TMainForm.N1Click(Sender: TObject);
+begin
+  CreateNewForm('root');
+end;
+
+procedure TMainForm.N2Click(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TMainForm.PopupMenu1Popup(Sender: TObject);
+const
+  FixedItemsCaption: array [0..1] of string = (
+    '新しいウィンドウを開く',
+    'アプリケーションを終了する'
+  );
+
+var
+  List: TList<TQuickAccessItem>;
+  MenuItem: TMenuItem;
+  FileInfo: TSHFileInfo;
+
+begin
+  PopupMenu1.Items.Clear;
+  List := TList<TQuickAccessItem>.Create;
+  try
+    GetQuickAccess(List);
+    for var i := 0 to List.Count - 1 do
+    begin
+      var QAItem  := List[i];
+      var NewItem := TMenuItem.Create(Self);
+      NewItem.Caption := QAItem.Display;
+      NewItem.Hint    := QAItem.FullPath;
+      NewItem.OnClick := PopupMenuItemClick;
+      var Icon := TIcon.Create;
+      try
+        SHGetFileInfo(PChar(string(QAItem.FullPath)), 0, FileInfo, SizeOf(FileInfo),
+          SHGFI_SMALLICON or SHGFI_ICON or SHGFI_SHELLICONSIZE);
+        Icon.Handle := FileInfo.hIcon;
+        NewItem.ImageIndex := ImageList1.AddIcon(Icon);
+      finally
+        Icon.Free;
+      end;
+      PopupMenu1.Items.Add(NewItem);
+    end;
+  finally
+    List.Free;
+  end;
+  MenuItem := TMenuItem.Create(Self);
+  MenuItem.Caption := '-';
+  PopupMenu1.Items.Add(MenUitem);
+  for var i := Low(FixedItemsCaption) to High(FixedItemsCaption) do
+  begin
+    var NewItem := TMenuItem.Create(Self);
+    MenuItem.Caption := FixedItemsCaption[i];
+    case i of
+      0: MenuItem.OnClick := N1Click;
+      1: MenuItem.OnClick := N2Click;
+    end;
+    PopupMenu1.Items.Add(NewItem);
+  end;
+end;
+
+procedure TMainForm.PopupMenuItemClick(Sender: TObject);
+begin
+  CreateNewForm(TMenuItem(Sender).Hint);
+end;
+
+procedure TMainForm.SetHotKey;
+begin
+  if not (RegisterHotKey(Handle, 0, MOD_SHIFT or MOD_CONTROL, Ord('E'))) then
+    MessageBox(Handle, 'ホットキーの登録に失敗しました', 'エラー', MB_ICONERROR);
+end;
+
+procedure TMainForm.WMHotKey(var message: TMessage);
+begin
+  if (Integer(Message.WParam) = FHotKeyID) then
+    CreateNewForm('root');
+end;
+
+// Utils
+
+procedure GetQuickAccess(var List: TList<TQuickAccessItem>);
+var
+  Shell : OleVariant;
+  Folder: OleVariant;
+  Items : OleVariant;
+  ItemCount: Integer;
+  QAItem: TQuickAccessItem;
+
+begin
+  CoInitialize(nil);
+  Shell  := CreateOleObject('Shell.Application');
+  Folder := Shell.NameSpace(OleVariant(QuickAccess));
+  Items  := Folder.Items;
+  ItemCount := Items.Count;
+  for var i := 0 to ItemCount - 1 do
+  begin
+    QAItem.Display  := Items.Item(i).Name;
+    QAItem.FullPath := Items.Item(i).Path;
+    List.Add(QAItem);
+  end;
+  Shell  := Unassigned;
+  Folder := Unassigned;
+  Items  := Unassigned;
+  CoUninitialize;
+end;
+
+end.

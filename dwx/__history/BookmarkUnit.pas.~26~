@@ -1,0 +1,87 @@
+unit BookmarkUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Menus, Vcl.Mask, Vcl.ComCtrls, Winapi.ShellAPI, System.IOUtils;
+
+type
+  TBookmarkForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Button1: TButton;
+    Button2: TButton;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Button4: TButton;
+    Button3: TButton;
+    Button5: TButton;
+    Panel6: TPanel;
+    Panel7: TPanel;
+    LabeledEdit1: TLabeledEdit;
+    LabeledEdit2: TLabeledEdit;
+    LV1: TListView;
+    procedure FormResize(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure LV1SelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+  private
+    { Private êÈåæ }
+    FCol: Integer;
+    FRow: Integer;
+  public
+    { Public êÈåæ }
+  end;
+
+var
+  BookmarkForm: TBookmarkForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TBookmarkForm.Button2Click(Sender: TObject);
+begin
+  BookmarkForm.Close;
+end;
+
+procedure TBookmarkForm.Button3Click(Sender: TObject);
+begin
+  if not TDirectory.Exists(LabeledEdit2.Text) then
+  begin
+    MessageDlg('ñ≥å¯Ç»ÉpÉXÇ≈Ç∑', mtError, [mbOK], 0);
+  end;
+  if LV1.ItemIndex = - 1 then
+  begin
+    var Item := LV1.Items.Add;
+    Item.Caption := LabeledEdit1.Text;
+    Item.SubItems.Add(LabeledEdit2.Text);
+  end;
+end;
+
+procedure TBookmarkForm.FormResize(Sender: TObject);
+begin
+  LV1.Columns[0].Width := 100;
+  LV1.Columns[1].Width := LV1.Width - LV1.Columns[0].Width - 20;
+  LabeledEdit1.Width := Panel6.Width - Panel7.Width - 35;
+end;
+
+procedure TBookmarkForm.LV1SelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  if Selected then
+  begin
+    LabeledEdit1.Text := Item.Caption;
+    LabeledEdit2.Text := Item.SubItems[0];
+  end else
+  begin
+    LabeledEdit1.Text := '';
+    LabeledEdit2.Text := '';
+  end;
+end;
+
+end.

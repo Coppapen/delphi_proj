@@ -1,0 +1,107 @@
+unit FileMonitor;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, System.SyncObjs, System.IOUtils;
+
+type
+  TFileMonitor = class(TThread)
+  private
+    FOnChange: TNotifyEvent;
+    FMutex: TMutex;
+    FEvent: TEvent;
+    FDirectory: string;
+    Flist: TArray<string>;
+    FPaused: Boolean;
+    procedure CallOnChange;
+    procedure DoChange;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(Mutex: TMutex; Event: TEvent);
+    procedure ChangeDirectory(const Directory: string);
+    procedure Pause;
+    procedure Restart;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property Paused: Boolean read FPaused;
+  end;
+
+implementation
+
+{ TFileMonitor }
+
+procedure TFileMonitor.CallOnChange;
+begin
+  FOnChange(Self);
+end;
+
+procedure TFileMonitor.ChangeDirectory(const Directory: string);
+begin
+  FDirectory := Directory;
+end;
+
+constructor TFileMonitor.Create(Mutex: TMutex; Event: TEvent);
+begin
+  inherited Create(False);
+  FMutex := Mutex;
+  FEvent := Event;
+end;
+
+procedure TFileMonitor.DoChange;
+begin
+  if Assigned(FOnChange) then
+    Synchronize(CallOnChange);
+end;
+
+procedure TFileMonitor.Execute;
+
+  function CompareArrays(List1, List2: TArray<string>): Boolean;
+  var
+    i: Integer;
+
+  begin
+    if Length(List1) <> Length(List2) then
+      Exit(False);
+    for i := Low(List1) to High(List2) do
+    begin
+      if List1[i] <> List2[i] then
+        Exit(False);
+    end;
+    Result := True;
+  end;
+
+var
+  List: TArray<string>;
+
+begin
+  while not Terminated do
+  begin
+    if TDirectory.Exists(FDirectory) then
+    begin
+      List := TDirectory.GetFileSystemEntries(FDirectory);
+      if not CompareArrays(FList, List) then
+      begin
+        DoChange;
+        FList := List;
+      end;
+    end;
+    Sleep(100);
+  end;
+end;
+
+procedure TFileMonitor.Pause;
+begin
+  FPaused := True;
+end;
+
+procedure TFileMonitor.Restart;
+begin
+  FPaused := False;
+  if TDirectory.Exists(FDirectory) then
+    FList := TDirectory.GetFileSystemEntries(FDirectory);
+end;
+
+end.

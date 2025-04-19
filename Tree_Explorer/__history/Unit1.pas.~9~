@@ -1,0 +1,146 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls,
+  VirtualExplorerTree, VirtualTrees, winapi.ShellAPI, System.ImageList,
+  Vcl.ImgList, Winapi.ShlObj, Winapi.CommCtrl, System.Win.ComObj, Vcl.ToolWin,
+  VirtualShellToolBar;
+
+const
+  STYPE_DISKTREE  = 0;
+  STYPE_PRINTQ    = 1;
+  STYPE_DEVICE    = 2;
+  STYPE_IPC       = 3;
+  STYPE_TEMPORARY = $40000000;
+  STYPE_SPECIAL   = $80000000;
+
+type
+  SHARE_INFO_1 = record
+      shi1_netname     :  PWideChar;
+      shi1_type        :  DWORD;
+      shi1_remark      :  PWideChar;
+  end;
+  PSHARE_INFO_1 = ^SHARE_INFO_1;
+
+  PQuickAccessItem = ^TQuickAccessItem;
+  TQuickAccessItem = record
+    Display : string;
+    FullPath: string;
+  end;
+
+  TMainForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Treeview1: TVirtualExplorerTreeview;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    SubTree1: TVirtualExplorerTree;
+    ListView1: TListView;
+    Splitter1: TSplitter;
+    Splitter2: TSplitter;
+    QAImageList: TImageList;
+    Panel6: TPanel;
+    VirtualShellToolbar1: TVirtualShellToolbar;
+    procedure FormCreate(Sender: TObject);
+    procedure ListView1Click(Sender: TObject);
+  private
+    { Private êÈåæ }
+    procedure ShowQuickAccessView;
+    procedure EnumerateShares(const Server: PChar; const Pfx: string = '');
+  public
+    { Public êÈåæ }
+  end;
+
+  NET_API_STATUS = DWORD;
+
+function NetShareEnum(ServerName       : PWideChar;
+                      Level            : DWORD;
+                      var BufPtr       : Pointer;
+                      PrefMaxLen       : DWORD;
+                      var EntriesRead  : DWORD;
+                      var TotalEntries : DWORD;
+                      var ResumeHandle : DWORD) : NET_API_STATUS; stdcall;
+             external 'NetAPI32.dll' name 'NetShareEnum';
+
+function NetApiBufferFree(Buffer : Pointer) : NET_API_STATUS; stdcall;
+             external 'NetAPI32.dll' name 'NetApiBufferFree';
+
+var
+  MainForm: TMainForm;
+
+implementation
+
+{$R *.dfm}
+
+{ TMainForm }
+
+procedure TMainForm.EnumerateShares(const Server: PChar; const Pfx: string);
+begin
+
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+begin
+  ShowQuickAccessView;
+end;
+
+procedure TMainForm.ListView1Click(Sender: TObject);
+var
+  QAItem: TQuickAccessItem;
+
+begin
+  if (ListView1.Selected <> nil) then
+  begin
+    QAItem := TQuickAccessItem(ListView1.Selected.Data^);
+    TreeView1.RootFolderCustomPath := QAItem.FullPath;
+  end;
+end;
+
+procedure TMainForm.ShowQuickAccessView;
+const
+  QuickAccess = 'shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}';
+
+var
+  Shell : OleVariant;
+  Folder: OleVariant;
+  FolderItems: OleVariant;
+  FolderItem : OleVariant;
+  ItemCount: Integer;
+  QAItem: PQuickAccessItem;
+  ListItem: TListItem;
+  FileInfo: TSHFileInfo;
+  Icon: TIcon;
+
+begin
+  QAImageList.BkColor := ListView1.Color;
+  ListView1.Clear;
+  Shell  := CreateOleObject('Shell.Application');
+  Folder := Shell.NameSpace(QuickAccess);
+  FolderItems := Folder.Items;
+  ItemCount := FolderItems.Count;
+  for var i := 0 to ItemCount - 1 do
+  begin
+    FolderItem := FolderItems.Item(i);
+    ListItem := ListView1.Items.Add;
+    ListItem.Caption := FolderItem.Name;
+    New(QAItem);
+    QAItem^.Display  := FolderItem.Name;
+    QAItem^.FullPath := FolderItem.Path;
+    ListItem.Data := Pointer(QAItem);
+    Icon := TIcon.Create;
+    try
+      SHGetFileInfo(PChar(string(FolderItem.Path)), 0, FileInfo, SizeOf(FileInfo),
+        SHGFI_SMALLICON or SHGFI_ICON or SHGFI_SHELLICONSIZE);
+      Icon.Handle := FileInfo.hIcon;
+      ListItem.ImageIndex := QAImageList.AddIcon(Icon);
+    finally
+      Icon.Free;
+    end;
+  end;
+end;
+
+end.

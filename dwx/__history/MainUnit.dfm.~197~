@@ -1,0 +1,210 @@
+object MainForm: TMainForm
+  Left = 0
+  Top = 0
+  Caption = 'Double Window Explorer  2025.03  Coppepan'
+  ClientHeight = 441
+  ClientWidth = 624
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  KeyPreview = True
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  OnResize = FormResize
+  OnShow = FormShow
+  TextHeight = 15
+  object Panel_L: TPanel
+    Left = 0
+    Top = 0
+    Width = 305
+    Height = 344
+    Align = alLeft
+    BevelOuter = bvNone
+    TabOrder = 0
+    inline Frame_L: TListViewFrame
+      Left = 0
+      Top = 0
+      Width = 305
+      Height = 344
+      Align = alClient
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Pitch = fpFixed
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+      ExplicitWidth = 305
+      ExplicitHeight = 344
+      inherited AddressPanel: TPanel
+        Width = 305
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitWidth = 305
+        inherited AddressEdit: TEdit
+          Width = 303
+          Height = 24
+          Font.Charset = ANSI_CHARSET
+          Font.Height = -16
+          Font.Name = #65325#65331' '#12468#12471#12483#12463
+          StyleElements = [seFont, seClient, seBorder]
+          ExplicitWidth = 303
+          ExplicitHeight = 24
+        end
+      end
+      inherited SelectedStatusPanel: TPanel
+        Width = 305
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitWidth = 305
+      end
+      inherited SearchPanel: TPanel
+        Top = 322
+        Width = 305
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitTop = 322
+        ExplicitWidth = 305
+        inherited SearchLabel: TLabel
+          StyleElements = [seFont, seClient, seBorder]
+        end
+        inherited SearchEdit: TEdit
+          Width = 256
+          Color = clBackground
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWhite
+          Font.Height = -13
+          Font.Name = #65325#65331' '#12468#12471#12483#12463
+          ParentFont = False
+          StyleElements = [seFont, seClient, seBorder]
+          ExplicitWidth = 256
+          ExplicitHeight = 21
+        end
+      end
+      inherited StatusPanel: TPanel
+        Top = 300
+        Width = 305
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitTop = 300
+        ExplicitWidth = 305
+      end
+      inherited TabSet: TTabSet
+        Width = 305
+        ExplicitWidth = 305
+      end
+      inherited FileListView: TListView
+        Width = 305
+        Height = 237
+        ExplicitWidth = 305
+        ExplicitHeight = 237
+      end
+    end
+  end
+  object Panel_R: TPanel
+    Left = 305
+    Top = 0
+    Width = 319
+    Height = 344
+    Align = alClient
+    BevelOuter = bvNone
+    TabOrder = 1
+    inline Frame_R: TListViewFrame
+      Left = 0
+      Top = 0
+      Width = 319
+      Height = 344
+      Align = alClient
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Pitch = fpFixed
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+      ExplicitWidth = 319
+      ExplicitHeight = 344
+      inherited AddressPanel: TPanel
+        Width = 319
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitWidth = 319
+        inherited AddressEdit: TEdit
+          Width = 317
+          Height = 24
+          Font.Charset = ANSI_CHARSET
+          Font.Height = -16
+          Font.Name = #65325#65331' '#12468#12471#12483#12463
+          StyleElements = [seFont, seClient, seBorder]
+          ExplicitWidth = 317
+          ExplicitHeight = 24
+        end
+      end
+      inherited SelectedStatusPanel: TPanel
+        Width = 319
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitWidth = 319
+      end
+      inherited SearchPanel: TPanel
+        Top = 322
+        Width = 319
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitTop = 322
+        ExplicitWidth = 319
+        inherited SearchLabel: TLabel
+          StyleElements = [seFont, seClient, seBorder]
+        end
+        inherited SearchEdit: TEdit
+          Width = 270
+          Color = clBackground
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWhite
+          Font.Height = -13
+          Font.Name = #65325#65331' '#12468#12471#12483#12463
+          ParentFont = False
+          StyleElements = [seFont, seClient, seBorder]
+          ExplicitWidth = 270
+          ExplicitHeight = 21
+        end
+      end
+      inherited StatusPanel: TPanel
+        Top = 300
+        Width = 319
+        StyleElements = [seFont, seClient, seBorder]
+        ExplicitTop = 300
+        ExplicitWidth = 319
+      end
+      inherited TabSet: TTabSet
+        Width = 319
+        ExplicitWidth = 319
+      end
+      inherited FileListView: TListView
+        Width = 319
+        Height = 237
+        ExplicitWidth = 319
+        ExplicitHeight = 237
+      end
+    end
+  end
+  object Panel_B: TPanel
+    Left = 0
+    Top = 344
+    Width = 624
+    Height = 97
+    Align = alBottom
+    BevelOuter = bvNone
+    Enabled = False
+    TabOrder = 2
+    object Memo1: TMemo
+      Left = 0
+      Top = 0
+      Width = 624
+      Height = 97
+      Align = alClient
+      Color = clBackground
+      ScrollBars = ssVertical
+      TabOrder = 0
+    end
+  end
+end

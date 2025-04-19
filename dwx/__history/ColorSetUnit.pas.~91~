@@ -1,0 +1,156 @@
+unit ColorSetUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, Vcl.ActnMan, Vcl.ActnColorMaps,
+  Vcl.ComCtrls, JvExStdCtrls, JvCombobox, JvColorCombo, JvExControls,
+  JvColorBox, JvColorButton, Vcl.ExtCtrls;
+
+type
+  TColorSetForm = class(TForm)
+    Button1: TButton;
+    Button2: TButton;
+    ColorBox1: TColorBox;
+    ColorBox2: TColorBox;
+    ColorBox3: TColorBox;
+    ColorBox4: TColorBox;
+    ColorBox5: TColorBox;
+    ColorBox6: TColorBox;
+    ColorBox7: TColorBox;
+    Edit1: TEdit;
+    Edit2: TEdit;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Label11: TLabel;
+    UpDown1: TUpDown;
+    UpDown2: TUpDown;
+    ComboBox1: TComboBox;
+    ComboBox2: TComboBox;
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  private
+    { Private êÈåæ }
+    procedure GetFontList;
+  public
+    { Public êÈåæ }
+  end;
+
+var
+  ColorSetForm: TColorSetForm;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  MainUnit;
+
+procedure TColorSetForm.Button1Click(Sender: TObject);
+begin
+  with MainForm.Explorer_L.Colors do
+  begin
+    FocusedSelectionColor         := ColorBox1.Selected;
+    FocusedSelectionBorderColor   := ColorBox2.Selected;
+    SelectionTextColor            := ColorBox3.Selected;
+    UnfocusedSelectionColor       := ColorBox4.Selected;
+    UnfocusedSelectionBorderColor := ColorBox5.Selected;
+    UnfocusedColor                := ColorBox6.Selected;
+  end;
+  MainForm.Explorer_L.font.Name := ComboBox1.Text;
+  MainForm.Explorer_L.font.Size := StrToInt(Edit1.Text);
+  with MainForm.Explorer_R.Colors do
+  begin
+    FocusedSelectionColor         := ColorBox1.Selected;
+    FocusedSelectionBorderColor   := ColorBox2.Selected;
+    SelectionTextColor            := ColorBox3.Selected;
+    UnfocusedSelectionColor       := ColorBox4.Selected;
+    UnfocusedSelectionBorderColor := ColorBox5.Selected;
+    UnfocusedColor                := ColorBox6.Selected;
+  end;
+  MainForm.Explorer_R.font.Name := ComboBox1.Text;
+  MainForm.Explorer_R.font.Size := StrToInt(Edit1.Text);
+  MainForm.SelectionColor := ColorBox7.Selected;
+  MainForm.TextEditor1.Fonts.Text.Name := ComboBox2.Text;
+  MainForm.TextEditor1.Fonts.Text.Size := StrToInt(Edit2.Text);
+  ColorSetForm.Close;
+end;
+
+procedure TColorSetForm.Button2Click(Sender: TObject);
+begin
+  ColorSetForm.Close;
+end;
+
+procedure TColorSetForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Key = VK_ESCAPE then
+    ColorSetForm.Close;
+end;
+
+procedure TColorSetForm.FormShow(Sender: TObject);
+begin
+  ColorBox7.Selected := MainForm.settings.SelectedColor;
+  with MainForm.Settings.ExplorerColorsAndFonts do
+  begin
+    ColorBox1.Selected := FocusedSelectionColor;
+    ColorBox2.Selected := FocusedSelectionBorderColor;
+    ColorBox3.Selected := SelectionTextColor;
+    ColorBox4.Selected := UnfocusedSelectionColor;
+    ColorBox5.Selected := UnfocusedSelectionBorderColor;
+    ColorBox6.Selected := UnfocusedColor;
+    ComboBox1.Text := ExplorerFont.Name;
+    Edit1.Text := ExplorerFont.Size.ToString;
+    ComboBox2.Text := ConsoleFont.Name;
+    Edit2.Text := ConsoleFont.Size.ToString;
+  end;
+  GetFontList;
+end;
+
+procedure TColorSetForm.GetFontList;
+var
+  DC: HDC;
+  FontList: TStringList;
+  ALogFont: TLogFont;
+
+  function EnumFontsProc(lpelf: PEnumLogFont; lpntm: PNewTextMetric;
+    nFontType: Integer; lParam: LParam):Integer; stdcall;
+  var
+    AFontName: string;
+
+  begin
+    AFontName := lpelf.elfLogFont.lfFaceName;
+    if Pos('@', AFontName) = 0 then
+    begin
+      ComboBox1.Items.Add(AFontName);
+      ComboBox2.Items.Add(AFontName);
+    end;
+    Result := 1;
+  end;
+
+begin
+  ComboBox1.Clear;
+  ComboBox2.Clear;
+  DC := GetDC(0);
+  try
+    FillChar(ALogFont, SizeOf(LogFont), 0);
+    ALogFont.lfCharSet := DEFAULT_CHARSET;
+    EnumFontFamilies(DC, nil, @EnumFontsProc, 0);
+  finally
+    ReleaseDC(0, DC);
+  end;
+end;
+
+end.

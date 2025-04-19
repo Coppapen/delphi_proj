@@ -1,0 +1,201 @@
+object MainForm: TMainForm
+  Left = 0
+  Top = 0
+  Caption = 'MainForm'
+  ClientHeight = 442
+  ClientWidth = 628
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  TextHeight = 15
+  object Panel1: TPanel
+    Left = 0
+    Top = 0
+    Width = 628
+    Height = 97
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 0
+    object Panel4: TPanel
+      Left = 0
+      Top = 41
+      Width = 628
+      Height = 56
+      Align = alClient
+      BevelOuter = bvNone
+      TabOrder = 0
+      ExplicitLeft = 224
+      ExplicitTop = 28
+      ExplicitWidth = 185
+      ExplicitHeight = 41
+    end
+    object Panel5: TPanel
+      Left = 0
+      Top = 0
+      Width = 628
+      Height = 41
+      Align = alTop
+      BevelOuter = bvNone
+      TabOrder = 1
+      ExplicitLeft = 2
+      ExplicitTop = 9
+      ExplicitWidth = 626
+    end
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 97
+    Width = 628
+    Height = 345
+    Align = alClient
+    TabOrder = 1
+    ExplicitLeft = 232
+    ExplicitTop = 224
+    ExplicitWidth = 185
+    ExplicitHeight = 41
+    object Splitter2: TSplitter
+      Left = 186
+      Top = 1
+      Height = 343
+      ExplicitLeft = 232
+      ExplicitTop = 144
+      ExplicitHeight = 100
+    end
+    object VirtualExplorerTreeview1: TVirtualExplorerTreeview
+      Left = 189
+      Top = 1
+      Width = 438
+      Height = 343
+      Active = True
+      Align = alClient
+      Colors.BorderColor = 15987699
+      Colors.DisabledColor = clGray
+      Colors.DropMarkColor = 15385233
+      Colors.DropTargetColor = 15385233
+      Colors.DropTargetBorderColor = 15385233
+      Colors.FocusedSelectionColor = 15385233
+      Colors.FocusedSelectionBorderColor = 15385233
+      Colors.GridLineColor = 15987699
+      Colors.HeaderHotColor = clBlack
+      Colors.HotColor = clBlack
+      Colors.SelectionRectangleBlendColor = 15385233
+      Colors.SelectionRectangleBorderColor = 15385233
+      Colors.SelectionTextColor = clBlack
+      Colors.TreeLineColor = 9471874
+      Colors.UnfocusedColor = clGray
+      Colors.UnfocusedSelectionColor = clWhite
+      Colors.UnfocusedSelectionBorderColor = clWhite
+      ColumnDetails = cdShellColumns
+      DefaultNodeHeight = 17
+      DragHeight = 250
+      DragWidth = 150
+      FileObjects = [foFolders, foHidden, foEnableAsync]
+      FileSizeFormat = fsfExplorer
+      FileSort = fsFileType
+      Header.AutoSizeIndex = -1
+      Header.Height = 17
+      Header.Options = [hoColumnResize, hoDrag, hoShowSortGlyphs, hoVisible]
+      HintMode = hmHint
+      ParentColor = False
+      RootFolder = rfDesktop
+      TabOrder = 0
+      TabStop = True
+      TreeOptions.AutoOptions = [toAutoScroll, toAutoChangeScale]
+      TreeOptions.MiscOptions = [toAcceptOLEDrop, toEditable, toToggleOnDblClick]
+      TreeOptions.PaintOptions = [toHideSelection, toShowButtons, toShowTreeLines, toThemeAware, toUseBlendedImages, toGhostedIfUnfocused]
+      TreeOptions.SelectionOptions = [toLevelSelectConstraint]
+      TreeOptions.VETShellOptions = [toContextMenus]
+      TreeOptions.VETSyncOptions = [toCollapseTargetFirst, toExpandTarget, toSelectTarget]
+      TreeOptions.VETMiscOptions = [toBrowseExecuteFolder, toBrowseExecuteFolderShortcut, toBrowseExecuteZipFolder, toChangeNotifierThread, toRemoveContextMenuShortCut]
+      TreeOptions.VETImageOptions = [toImages, toThreadedImages, toMarkCutAndCopy]
+    end
+    object Panel3: TPanel
+      Left = 1
+      Top = 1
+      Width = 185
+      Height = 343
+      Align = alLeft
+      TabOrder = 1
+      ExplicitLeft = 72
+      ExplicitTop = 80
+      ExplicitHeight = 41
+      object Splitter1: TSplitter
+        Left = 1
+        Top = 177
+        Width = 183
+        Height = 3
+        Cursor = crVSplit
+        Align = alTop
+        ExplicitTop = 121
+        ExplicitWidth = 221
+      end
+      object VirtualExplorerTree1: TVirtualExplorerTree
+        Left = 1
+        Top = 180
+        Width = 183
+        Height = 162
+        Active = True
+        Align = alClient
+        Colors.BorderColor = 15987699
+        Colors.DisabledColor = clGray
+        Colors.DropMarkColor = 15385233
+        Colors.DropTargetColor = 15385233
+        Colors.DropTargetBorderColor = 15385233
+        Colors.FocusedSelectionColor = 15385233
+        Colors.FocusedSelectionBorderColor = 15385233
+        Colors.GridLineColor = 15987699
+        Colors.HeaderHotColor = clBlack
+        Colors.HotColor = clBlack
+        Colors.SelectionRectangleBlendColor = 15385233
+        Colors.SelectionRectangleBorderColor = 15385233
+        Colors.SelectionTextColor = clBlack
+        Colors.TreeLineColor = 9471874
+        Colors.UnfocusedColor = clGray
+        Colors.UnfocusedSelectionColor = clWhite
+        Colors.UnfocusedSelectionBorderColor = clWhite
+        ColumnDetails = cdUser
+        ColumnMenuItemCount = 8
+        DefaultNodeHeight = 17
+        DragHeight = 250
+        DragWidth = 150
+        FileSizeFormat = fsfExplorer
+        FileSort = fsFileType
+        Header.AutoSizeIndex = 0
+        Header.Height = 17
+        Header.MainColumn = -1
+        HintMode = hmHint
+        ParentColor = False
+        RootFolder = rfDesktop
+        TabOrder = 0
+        TabStop = True
+        TreeOptions.PaintOptions = [toHideSelection, toShowButtons, toShowTreeLines, toThemeAware, toUseBlendedImages, toGhostedIfUnfocused]
+        TreeOptions.VETShellOptions = [toRightAlignSizeColumn, toContextMenus]
+        TreeOptions.VETSyncOptions = [toCollapseTargetFirst, toExpandTarget, toSelectTarget]
+        TreeOptions.VETMiscOptions = [toBrowseExecuteFolder, toBrowseExecuteFolderShortcut, toBrowseExecuteZipFolder, toExecuteOnDblClk]
+        TreeOptions.VETImageOptions = [toImages, toMarkCutAndCopy]
+        VirtualExplorerTree = VirtualExplorerTreeview1
+        Columns = <>
+      end
+      object ListView1: TListView
+        Left = 1
+        Top = 1
+        Width = 183
+        Height = 176
+        Align = alTop
+        BorderStyle = bsNone
+        Columns = <>
+        SmallImages = QAImageList
+        TabOrder = 1
+        ViewStyle = vsList
+      end
+    end
+  end
+  object QAImageList: TImageList
+    Left = 73
+    Top = 170
+  end
+end

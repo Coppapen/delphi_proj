@@ -1,0 +1,224 @@
+object ColorSetForm: TColorSetForm
+  Left = 0
+  Top = 0
+  BorderStyle = bsDialog
+  Caption = #33394#12539#12501#12457#12531#12488#35373#23450
+  ClientHeight = 391
+  ClientWidth = 384
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  KeyPreview = True
+  OnKeyDown = FormKeyDown
+  OnShow = FormShow
+  TextHeight = 15
+  object Label1: TLabel
+    Left = 13
+    Top = 73
+    Width = 181
+    Height = 15
+    Caption = #12501#12457#12540#12459#12473#26178#12398#36984#25246#12450#12452#12486#12512#12398#32972#26223' :'
+  end
+  object Label2: TLabel
+    Left = 13
+    Top = 100
+    Width = 194
+    Height = 15
+    Caption = #12501#12457#12540#12459#12473#26178#12398#36984#25246#12450#12452#12486#12512#12398#22659#30028#32218' :'
+  end
+  object Label3: TLabel
+    Left = 13
+    Top = 127
+    Width = 118
+    Height = 15
+    Caption = #12501#12457#12540#12459#12473#26178#12398#12486#12461#12473#12488' :'
+  end
+  object Label4: TLabel
+    Left = 13
+    Top = 154
+    Width = 194
+    Height = 15
+    Caption = #38750#12501#12457#12540#12459#12473#26178#12398#36984#25246#12450#12452#12486#12512#12398#32972#26223' :'
+  end
+  object Label5: TLabel
+    Left = 13
+    Top = 181
+    Width = 207
+    Height = 15
+    Caption = #38750#12501#12457#12540#12459#12473#26178#12398#36984#25246#12450#12452#12486#12512#12398#22659#30028#32218' :'
+  end
+  object Label6: TLabel
+    Left = 13
+    Top = 208
+    Width = 131
+    Height = 15
+    Caption = #38750#12501#12457#12540#12459#12473#26178#12398#12486#12461#12473#12488' :'
+  end
+  object Label7: TLabel
+    Left = 152
+    Top = 240
+    Width = 69
+    Height = 15
+    Caption = #12501#12457#12531#12488#31278#39006' :'
+  end
+  object Label8: TLabel
+    Left = 320
+    Top = 240
+    Width = 37
+    Height = 15
+    Caption = #12469#12452#12474' :'
+  end
+  object Label9: TLabel
+    Left = 13
+    Top = 264
+    Width = 111
+    Height = 15
+    Caption = #12456#12463#12473#12503#12525#12540#12521#12398#25991#23383' :'
+  end
+  object Label10: TLabel
+    Left = 13
+    Top = 298
+    Width = 94
+    Height = 15
+    Caption = #12467#12531#12477#12540#12523#12398#25991#23383' :'
+  end
+  object Label11: TLabel
+    Left = 13
+    Top = 18
+    Width = 154
+    Height = 15
+    Caption = #12501#12457#12540#12459#12473#12398#12354#12427#12456#12463#12473#12503#12525#12540#12521' :'
+  end
+  object Label12: TLabel
+    Left = 13
+    Top = 45
+    Width = 155
+    Height = 15
+    Caption = #12501#12457#12540#12459#12473#12398#12394#12356#12456#12463#12473#12503#12525#12540#12521' :'
+  end
+  object UpDown1: TUpDown
+    Left = 353
+    Top = 261
+    Width = 16
+    Height = 23
+    Associate = Edit1
+    TabOrder = 0
+  end
+  object Edit1: TEdit
+    Left = 320
+    Top = 261
+    Width = 33
+    Height = 23
+    TabOrder = 1
+    Text = '0'
+  end
+  object UpDown2: TUpDown
+    Left = 353
+    Top = 295
+    Width = 16
+    Height = 23
+    Associate = Edit2
+    TabOrder = 2
+  end
+  object Edit2: TEdit
+    Left = 320
+    Top = 295
+    Width = 33
+    Height = 23
+    TabOrder = 3
+    Text = '0'
+  end
+  object Button1: TButton
+    Left = 69
+    Top = 347
+    Width = 100
+    Height = 25
+    Caption = 'OK'
+    TabOrder = 4
+    OnClick = Button1Click
+  end
+  object Button2: TButton
+    Left = 197
+    Top = 347
+    Width = 100
+    Height = 25
+    Caption = 'CANCEL'
+    TabOrder = 5
+    OnClick = Button2Click
+  end
+  object ColorBox1: TColorBox
+    Left = 226
+    Top = 70
+    Width = 145
+    Height = 22
+    TabOrder = 6
+  end
+  object ColorBox2: TColorBox
+    Left = 226
+    Top = 97
+    Width = 145
+    Height = 22
+    TabOrder = 7
+  end
+  object ColorBox3: TColorBox
+    Left = 226
+    Top = 124
+    Width = 145
+    Height = 22
+    TabOrder = 8
+  end
+  object ColorBox4: TColorBox
+    Left = 226
+    Top = 151
+    Width = 145
+    Height = 22
+    TabOrder = 9
+  end
+  object ColorBox5: TColorBox
+    Left = 226
+    Top = 178
+    Width = 145
+    Height = 22
+    TabOrder = 10
+  end
+  object ColorBox6: TColorBox
+    Left = 226
+    Top = 205
+    Width = 145
+    Height = 22
+    TabOrder = 11
+  end
+  object ColorBox7: TColorBox
+    Left = 226
+    Top = 15
+    Width = 145
+    Height = 22
+    TabOrder = 12
+  end
+  object ComboBox1: TComboBox
+    Left = 152
+    Top = 261
+    Width = 155
+    Height = 23
+    TabOrder = 13
+    Text = 'ComboBox1'
+  end
+  object ComboBox2: TComboBox
+    Left = 152
+    Top = 295
+    Width = 155
+    Height = 23
+    TabOrder = 14
+    Text = 'ComboBox1'
+  end
+  object ColorBox8: TColorBox
+    Left = 226
+    Top = 42
+    Width = 145
+    Height = 22
+    TabOrder = 15
+  end
+end

@@ -1,0 +1,21 @@
+program dwexp;
+
+uses
+  Vcl.Forms,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  InputUnit in 'InputUnit.pas' {InputForm},
+  RenameUnit in 'RenameUnit.pas' {RenameForm},
+  ExplorerUtils in 'ExplorerUtils.pas',
+  Vcl.Themes,
+  Vcl.Styles;
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TInputForm, InputForm);
+  Application.CreateForm(TRenameForm, RenameForm);
+  Application.Run;
+end.

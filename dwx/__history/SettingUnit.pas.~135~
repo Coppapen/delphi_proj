@@ -1,0 +1,274 @@
+unit SettingUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Mask, MainUnit, JSON, JSON.Serializers, JSON.Types, System.Generics.Collections,
+  System.Generics.Defaults, ExplorerUtils, JvExStdCtrls, JvCombobox,
+  JvColorCombo;
+
+type
+  TSettingForm = class(TForm)
+    PageControl1: TPageControl;
+    Panel1: TPanel;
+    OKButton: TButton;
+    CancelButton: TButton;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
+    TabSheet3: TTabSheet;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Label11: TLabel;
+    Label12: TLabel;
+    UpDown1: TUpDown;
+    FontSizeEdit1: TEdit;
+    UpDown2: TUpDown;
+    FontSizeEdit2: TEdit;
+    ColorBox1: TColorBox;
+    ColorBox2: TColorBox;
+    ColorBox3: TColorBox;
+    ColorBox4: TColorBox;
+    ColorBox5: TColorBox;
+    ColorBox6: TColorBox;
+    ColorBox7: TColorBox;
+    ColorBox8: TColorBox;
+    Panel2: TPanel;
+    Panel4: TPanel;
+    Panel6: TPanel;
+    PathLEdit: TLabeledEdit;
+    LV1: TListView;
+    ReplaceButton: TButton;
+    AddButton: TButton;
+    DeleteButton: TButton;
+    CommandLEdit: TLabeledEdit;
+    CheckBox1: TCheckBox;
+    CheckBox2: TCheckBox;
+    CheckBox3: TCheckBox;
+    FontCBox1: TJvFontComboBox;
+    FontCBox2: TJvFontComboBox;
+    procedure FormCreate(Sender: TObject);
+    procedure CancelButtonClick(Sender: TObject);
+    procedure OKButtonClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure ReplaceButtonClick(Sender: TObject);
+    procedure AddButtonClick(Sender: TObject);
+    procedure DeleteButtonClick(Sender: TObject);
+  private
+    { Private 宣言 }
+    FBookmarkList: TBookmarkList;
+    procedure ListupBookmarks;
+    procedure SaveBookmark;
+    procedure LoadSettings;
+    procedure SaveSettings;
+  public
+    { Public 宣言 }
+  end;
+
+var
+  SettingForm: TSettingForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TSettingForm.AddButtonClick(Sender: TObject);
+var
+  Item: TBookmarkItem;
+
+begin
+  Item.Command := CommandLEdit.Text;
+  Item.Path := PathLEdit.Text;
+  if not FBookmarkList.Add(Item) then
+    MessageDlg('登録に失敗しました', TMsgDlgType.mtError, [mbOK], 0);
+end;
+
+procedure TSettingForm.OKButtonClick(Sender: TObject);
+begin
+  FBookmarkList.SaveToFile(ExtractFilePath(Application.ExeName) + 'bookmarks.json');
+  SaveSettings;
+  MessageDlg('設定しました', TMsgDlgType.mtInformation, [mbOK], 0);
+end;
+
+procedure TSettingForm.CancelButtonClick(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TSettingForm.DeleteButtonClick(Sender: TObject);
+var
+  Item: TBookmarkItem;
+
+begin
+  var Index := LV1.ItemIndex;
+  if Index <> - 1 then
+  begin
+    Item.Command := LV1.Items[Index].Caption;
+    Item.Path := LV1.Items[Index].SubItems[0];
+    FBookmarkList.Delete(Item);
+  end;
+end;
+
+procedure TSettingForm.FormCreate(Sender: TObject);
+begin
+  PageControl1.ActivePageIndex := 0;
+  FBookmarkList := TBookmarkList.Create;
+  var FileName := ExtractFilePath(Application.ExeName) + 'bookmarks.json';
+  if FileExists(FileName) then
+    FBookmarkList.LoadFromFile(FileName);
+  ListupBookmarks;
+  LoadSettings;
+end;
+
+procedure TSettingForm.FormDestroy(Sender: TObject);
+begin
+  FBookmarkList.Free;
+end;
+
+procedure TSettingForm.ListupBookmarks;
+begin
+  LV1.Items.Clear;
+  for var i := 0 to FBookmarkList.Count - 1 do
+  begin
+    var Bookmark := FBookmarkList.Item(i);
+    var Item := LV1.Items.Add;
+    Item.Caption := Bookmark.Command;
+    Item.SubItems.Add(Bookmark.Path);
+  end;
+end;
+
+procedure TSettingForm.LoadSettings;
+var
+  fn: string;
+  st: TOverallSettings;
+  js: TJsonSerializer;
+  txt: TStringList;
+
+begin
+  fn := ExtractFilePath(Application.ExeName) + 'settings.json';
+  if FileExists(fn) then
+  begin
+    js := TJsonSerializer.Create;
+    txt := TStringList.Create;
+    try
+      txt.LoadFromFile(fn);
+      st := Js.Deserialize<TOverallSettings>(txt.Text);
+    finally
+      js.Free;
+      txt.Free;
+    end;
+    // 背景色
+    ColorBox1.Selected := st.SelectedColor;
+    ColorBox2.Selected := st.UnselectedColor;
+    // フォーカス時
+    ColorBox3.Selected := st.ExplorerColorsAndFonts.FocusedSelectionColor;
+    ColorBox4.Selected := st.ExplorerColorsAndFonts.FocusedSelectionBorderColor;
+    ColorBox5.Selected := st.ExplorerColorsAndFonts.SelectionTextColor;
+    // 非フォーカス時
+    ColorBox6.Selected := st.ExplorerColorsAndFonts.UnfocusedSelectionColor;
+    ColorBox7.Selected := st.ExplorerColorsAndFonts.UnfocusedSelectionBorderColor;
+    ColorBox8.Selected := st.ExplorerColorsAndFonts.UnfocusedColor;
+    // エクスプローラフォント
+    FontCBox1.FontName := st.ExplorerColorsAndFonts.ExplorerFont.Name;
+    UpDown1.Position := st.ExplorerColorsAndFonts.ExplorerFont.Size;
+    // コンソールフォント
+    FontCBox2.FontName := st.ExplorerColorsAndFonts.ConsoleFont.Name;
+    UpDown2.Position := st.ExplorerColorsAndFonts.ConsoleFont.Size;
+    // その他設定
+    CheckBox1.Checked := st.OtherSettings.IsShowHiddenFiles;
+    CheckBox2.Checked := st.OtherSettings.IsShowHorizontalGridLines;
+    CheckBox3.Checked := st.OtherSettings.IsShowVerticalGridLines;
+  end else
+  begin
+    ColorBox1.Selected := clWhite;
+    ColorBox2.Selected := clWhite;
+    ColorBox3.Selected := clBlue;
+    ColorBox4.Selected := clBlue;
+    ColorBox5.Selected := clWhite;
+    ColorBox6.Selected := clBlue;
+    ColorBox7.Selected := clBlue;
+    ColorBox8.Selected := clWhite;
+    FontCBox1.FontName := 'ＭＳ ゴシック';
+    UpDown1.Position := 10;
+    FontCBox2.FontName := 'ＭＳ ゴシック';
+    UpDown2.Position := 10;
+    CheckBox1.Checked := False;
+    CheckBox2.Checked := False;
+    CheckBox3.Checked := False;
+  end;
+end;
+
+procedure TSettingForm.ReplaceButtonClick(Sender: TObject);
+var
+  OldItem, NewItem: TBookmarkItem;
+
+begin
+  var Index := LV1.ItemIndex;
+  if Index <> - 1 then
+  begin
+    OldItem.Command := LV1.Items[Index].Caption;
+    OldItem.Path := LV1.Items[Index].SubItems[0];
+    NewItem.Command := CommandLEdit.Text;
+    NewItem.Path := PathLEdit.Text;
+    if FBookmarkList.Replace(OldItem, NewItem) then
+      MessageDlg('登録に失敗しました', TMsgDlgType.mtError, [mbOK], 0);
+  end;
+end;
+
+procedure TSettingForm.SaveBookmark;
+begin
+  FBookmarkList.SaveToFile(ExtractFilePath(Application.ExeName) + 'bookmarks.json');
+end;
+
+procedure TSettingForm.SaveSettings;
+var
+  js: TJsonSerializer;
+  st: TOverallSettings;
+  txt: TStringList;
+
+begin
+  // 背景色
+  st.SelectedColor := ColorBox1.Selected;
+  st.UnselectedColor := ColorBox2.Selected;
+  // フォーカス時
+  st.ExplorerColorsAndFonts.FocusedSelectionColor := ColorBox3.Selected;
+  st.ExplorerColorsAndFonts.FocusedSelectionBorderColor := ColorBox4.Selected;
+  st.ExplorerColorsAndFonts.SelectionTextColor := ColorBox5.Selected;
+  // 非フォーカス時
+  st.ExplorerColorsAndFonts.UnfocusedSelectionColor := ColorBox6.Selected;
+  st.ExplorerColorsAndFonts.UnfocusedSelectionBorderColor := ColorBox7.Selected;
+  st.ExplorerColorsAndFonts.UnfocusedColor := ColorBox8.Selected;
+  // エクスプローラフォント
+  st.ExplorerColorsAndFonts.ExplorerFont.Name := FontCBox1.Text;
+  st.ExplorerColorsAndFonts.ExplorerFont.Size := StrToInt(FontSizeEdit1.Text);
+  // コンソールフォント
+  st.ExplorerColorsAndFonts.ConsoleFont.Name := FontCBox2.Text;
+  st.ExplorerColorsAndFonts.ConsoleFont.Size := StrToInt(FontSizeEdit2.Text);
+  // その他設定
+  st.OtherSettings.IsShowHiddenFiles := CheckBox1.Checked;
+  st.OtherSettings.IsShowHorizontalGridLines := CheckBox2.Checked;
+  st.OtherSettings.IsShowVerticalGridLines := CheckBox3.Checked;
+
+  js := TJsonSerializer.Create;
+  txt := TStringList.Create;
+  try
+    Js.Formatting := TJsonFormatting.Indented;
+    var Json := Js.Serialize<TOverallSettings>(st);
+    txt.Text := Json;
+    txt.SaveToFile(ExtractFilePath(Application.ExeName) + 'settings.json');
+  finally
+    js.Free;
+    txt.Free;
+  end;
+end;
+
+end.

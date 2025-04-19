@@ -1,0 +1,285 @@
+unit BookmarkUtils;
+
+interface
+
+uses
+  System.JSON, System.Classes, System.SysUtils,
+  System.Generics.Collections, System.StrUtils;
+
+type
+  TBookmarkItem = class
+  public
+    Name: string;
+    Path: string;
+    constructor Create(const AName, APath: string);
+    function ToJSON: TJSONObject;
+    class function FromJSON(AJSON: TJSONObject): TBookmarkItem;
+  end;
+
+  TBookmarkCategory = class
+  public
+    Category: string;
+    Items: TObjectList<TBookmarkItem>;
+    constructor Create(const ACategory: string);
+    destructor Destroy; override;
+    function ToJSON: TJSONObject;
+    class function FromJSON(AJSON: TJSONObject): TBookmarkCategory;
+  end;
+
+  TBookmarkCollection = class
+  public
+    Categories: TObjectList<TBookmarkCategory>;
+    constructor Create;
+    destructor Destroy; override;
+    function AddCategory(const CategoryName: string): TBookmarkCategory;
+    function AddItem(const CategoryName, ItemName, ItemPath: string): Boolean;
+    function FindItemsByPartialName(const Substr: string): TList<TBookmarkItem>;
+    function GetItem(const CategoryName, ItemName: string): TBookmarkItem;
+    function HasDuplicate(const CategoryName, ItemName: string): Boolean;
+    function IsPathExists(const Path: string): Boolean;
+    function RemoveCategory(const CategoryName: string): Boolean;
+    function RemoveItem(const CategoryName, ItemName: string): Boolean;
+    function ToJSON: TJSONObject;
+    procedure FromJSON(AJSON: TJSONObject);
+    procedure LoadFromFile(const FileName: string);
+    procedure SaveToFile(const FileName: string);
+  end;
+
+implementation
+
+{ TBookmarkItem }
+
+constructor TBookmarkItem.Create(const AName, APath: string);
+begin
+  Name := AName;
+  Path := APath;
+end;
+
+class function TBookmarkItem.FromJSON(AJSON: TJSONObject): TBookmarkItem;
+begin
+  Result := TBookmarkItem.Create(
+    AJSON.GetValue<string>('name'),
+    AJSON.GetValue<string>('path')
+  );
+end;
+
+function TBookmarkItem.ToJSON: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('name', Name);
+  Result.AddPair('path', Path);
+end;
+
+{ TBookmarkCategory }
+
+constructor TBookmarkCategory.Create(const ACategory: string);
+begin
+  Category := ACategory;
+  Items := TObjectList<TBookmarkItem>.Create(True);
+end;
+
+destructor TBookmarkCategory.Destroy;
+begin
+  Items.Free;
+  inherited;
+end;
+
+class function TBookmarkCategory.FromJSON(
+  AJSON: TJSONObject): TBookmarkCategory;
+var
+  ItemsArray: TJSONArray;
+  i: Integer;
+
+begin
+  Result := TBookmarkCategory.Create(AJSON.GetValue<string>('category'));
+  ItemsArray := AJSON.GetValue<TJSONArray>('items');
+  for i := 0 to ItemsArray.Count - 1 do
+    Result.Items.Add(TBookmarkItem.FromJSON(ItemsArray.Items[i] as TJSONObject));
+end;
+
+function TBookmarkCategory.ToJSON: TJSONObject;
+var
+  ItemsArray: TJSONArray;
+  Item: TBookmarkItem;
+
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('category', Category);
+  ItemsArray := TJSONArray.Create;
+  for Item in Items do
+    ItemsArray.AddElement(Item.ToJSON);
+  Result.AddPair('items', ItemsArray);
+end;
+
+{ TBookmarkCollection }
+
+function TBookmarkCollection.AddCategory(
+  const CategoryName: string): TBookmarkCategory;
+begin
+  Result := nil;
+  if GetItem(CategoryName, '') <> nil then
+    Exit;
+  Result := TBookmarkCategory.Create(CategoryName);
+  Categories.Add(Result);
+end;
+
+function TBookmarkCollection.AddItem(const CategoryName, ItemName,
+  ItemPath: string): Boolean;
+var
+  Category: TBookmarkCategory;
+
+begin
+  if HasDuplicate(CategoryName, ItemName) then
+    Exit(False);
+  Category := nil;
+  for var Cat in Categories do
+    if SameText(Cat.Category, CategoryName) then
+    begin
+      Category := Cat;
+      Break;
+    end;
+  if Category = nil then
+    Category := AddCategory(CategoryName);
+  Category.Items.Add(TBookmarkItem.Create(ItemName, ItemPath));
+  Result := True;
+end;
+
+constructor TBookmarkCollection.Create;
+begin
+  Categories := TObjectList<TBookmarkCategory>.Create(True);
+end;
+
+destructor TBookmarkCollection.Destroy;
+begin
+  Categories.Free;
+  inherited;
+end;
+
+function TBookmarkCollection.FindItemsByPartialName(
+  const Substr: string): TList<TBookmarkItem>;
+var
+  Cat: TBookmarkCategory;
+  Item: TBookmarkItem;
+
+begin
+  Result := TList<TBookmarkItem>.Create;
+  for Cat in Categories do
+  begin
+    for Item in Cat.Items do
+    begin
+      if ContainsText(Item.Name, Substr) then
+        Result.Add(Item);
+    end;
+  end;
+end;
+
+procedure TBookmarkCollection.FromJSON(AJSON: TJSONObject);
+var
+  CategoriesArray: TJSONArray;
+  i: Integer;
+
+begin
+  Categories.Clear;
+  CategoriesArray := AJSON.GetValue<TJSONArray>('bookmarks');
+  for i := 0 to CategoriesArray.Count - 1 do
+    Categories.Add(TBookmarkCategory.FromJSON(CategoriesArray.Items[i] as TJSONObject));
+end;
+
+function TBookmarkCollection.GetItem(const CategoryName,
+  ItemName: string): TBookmarkItem;
+var
+  Cat: TBookmarkCategory;
+  Item: TBookmarkItem;
+
+begin
+  Result := nil;
+  for Cat in Categories do
+  begin
+    if SameText(Cat.Category, CategoryName) then
+    begin
+      for Item in Cat.Items do
+      begin
+        if SameText(Item.Name, ItemName) then
+        begin
+          Exit(Item);
+        end;
+      end;
+    end;
+  end;
+end;
+
+function TBookmarkCollection.HasDuplicate(const CategoryName,
+  ItemName: string): Boolean;
+begin
+
+end;
+
+function TBookmarkCollection.IsPathExists(const Path: string): Boolean;
+begin
+  Result := TDirectory.Exists(Path) or TFile.Exists(Path);
+end;
+
+procedure TBookmarkCollection.LoadFromFile(const FileName: string);
+begin
+
+end;
+
+function TBookmarkCollection.RemoveCategory(
+  const CategoryName: string): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  for i := Categories.Count - 1 downto 0 do
+  begin
+    if SameText(Categories[i].Category, CategoryName) then
+    begin
+      Categories.Delete(i);
+      Exit(True);
+    end;
+  end;
+end;
+
+function TBookmarkCollection.RemoveItem(const CategoryName,
+  ItemName: string): Boolean;
+var
+  Cat: TBookmarkCategory;
+  i: Integer;
+
+begin
+  Result := False;
+  for Cat in Categories do
+  begin
+    if SameText(Cat.Category, CategoryName) then
+    begin
+      for i := Cat.Items.Count - 1 downto 0 do
+      begin
+        if SameText(Cat.Items[i].Name, ItemName) then
+        begin
+          Cat.Items.Delete(i);
+          Exit(True);
+        end;
+      end;
+    end;
+  end;
+end;
+
+procedure TBookmarkCollection.SaveToFile(const FileName: string);
+begin
+
+end;
+
+function TBookmarkCollection.ToJSON: TJSONObject;
+var
+  CategoriesArray: TJSONArray;
+  Category: TBookmarkCategory;
+
+begin
+  Result := TJSONObject.Create;
+  CategoriesArray := TJSONArray.Create;
+  for Category in Categories do
+    CategoriesArray.AddElement(Category.ToJSON);
+  Result.AddPair('bookmarks', CategoriesArray);
+end;
+
+end.

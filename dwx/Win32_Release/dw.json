@@ -1,0 +1,24 @@
+{
+    "Position": {
+        "Top": 178,
+        "Left": 184,
+        "Height": 594,
+        "Width": 1102
+    },
+    "CurrentDirs": {
+        "L": "C:\\Users\\coppepan\\Pictures\\TearsOfTheKingdom",
+        "R": "C:\\Users\\coppepan\\Downloads"
+    },
+    "ListViewFont": {
+        "Name": "Ricty Diminished",
+        "Size": 12,
+        "Color": 0
+    },
+    "HistoryFont": {
+        "Name": "Ricty Diminished",
+        "Size": 12,
+        "Color": 16777215
+    },
+    "ListViewWidth": 543,
+    "HistoryHeight": 170
+}

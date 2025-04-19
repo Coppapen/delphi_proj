@@ -1,0 +1,48 @@
+program TreeExplorer;
+
+uses
+  Vcl.Forms,
+  Vcl.Styles,
+  Vcl.Themes,
+  Winapi.Messages,
+  Winapi.Windows,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  SubUnit in 'SubUnit.pas' {ExplorerForm};
+
+{$R *.res}
+
+var
+  hMutex: THandle;
+  hApp: THandle;
+  Command: PChar;
+
+begin
+  hMutex := CreateMutex(nil, True, 'MyExplorer');
+  if (hMutex <> 0) and (GetLastError() = ERROR_ALREADY_EXISTS) then
+  begin
+    ReleaseMutex(hMutex);
+    CloseHandle(hMutex);
+    hApp := FindWindow('TMainForm', nil);//'MainForm');
+    if (hApp <> 0) then
+    begin
+      Command := 'NewExplorer';
+      SendMessage(hApp, WM_SETTEXT, 0, LPARAM(Command));
+    end;
+    Exit;
+  end;
+  {
+  if (CreateMutex(nil, False, 'Dsapbi203dap') <> 0)
+    and (GetLastError = ERROR_ALREADY_EXISTS) then
+  begin
+    // ìÒèdãNìÆÇÃñhé~
+    Exit;
+  end;
+  }
+  Application.Initialize;
+  Application.MainFormOnTaskbar := False;
+  Application.ShowMainForm := False;
+  TStyleManager.TrySetStyle('Carbon');
+  Application.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TExplorerForm, ExplorerForm);
+  Application.Run;
+end.

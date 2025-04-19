@@ -1,0 +1,262 @@
+unit SettingUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Mask, MainUnit, JSON, JSON.Serializers, JSON.Types, System.Generics.Collections,
+  System.Generics.Defaults, ExplorerUtils, JvExStdCtrls, JvCombobox,
+  JvColorCombo, Winapi.ShellAPI, System.IOUtils;
+
+type
+  TSettingForm = class(TForm)
+    PageControl1: TPageControl;
+    Panel1: TPanel;
+    OKButton: TButton;
+    CancelButton: TButton;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
+    TabSheet3: TTabSheet;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Label9: TLabel;
+    Label10: TLabel;
+    Label11: TLabel;
+    Label12: TLabel;
+    UpDown1: TUpDown;
+    FontSizeEdit1: TEdit;
+    UpDown2: TUpDown;
+    FontSizeEdit2: TEdit;
+    ColorBox1: TColorBox;
+    ColorBox2: TColorBox;
+    ColorBox3: TColorBox;
+    ColorBox4: TColorBox;
+    ColorBox5: TColorBox;
+    ColorBox6: TColorBox;
+    ColorBox7: TColorBox;
+    ColorBox8: TColorBox;
+    Panel2: TPanel;
+    Panel4: TPanel;
+    Panel6: TPanel;
+    PathLEdit: TLabeledEdit;
+    LV1: TListView;
+    ReplaceButton: TButton;
+    AddButton: TButton;
+    DeleteButton: TButton;
+    CommandLEdit: TLabeledEdit;
+    CheckBox1: TCheckBox;
+    CheckBox2: TCheckBox;
+    CheckBox3: TCheckBox;
+    FontCBox1: TJvFontComboBox;
+    FontCBox2: TJvFontComboBox;
+    procedure FormCreate(Sender: TObject);
+    procedure CancelButtonClick(Sender: TObject);
+    procedure OKButtonClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure ReplaceButtonClick(Sender: TObject);
+    procedure AddButtonClick(Sender: TObject);
+    procedure DeleteButtonClick(Sender: TObject);
+    procedure LV1SelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+  private
+    { Private 宣言 }
+    FBookmarkList: TBookmarkList;
+    FAppSettings: TApplicationSettings;
+    procedure LoadSettings;
+    procedure ListupBookmarks;
+    procedure SaveSettings;
+    procedure WMDropFiles(var Msg: TMessage); message WM_DROPFILES;
+  public
+    { Public 宣言 }
+  end;
+
+var
+  SettingForm: TSettingForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TSettingForm.AddButtonClick(Sender: TObject);
+var
+  Item: TBookmarkItem;
+
+begin
+  Item.Command := CommandLEdit.Text;
+  Item.Path := PathLEdit.Text;
+  if not FBookmarkList.Add(Item) then
+    MessageDlg('登録に失敗しました', TMsgDlgType.mtError, [mbOK], 0);
+  ListupBookmarks;
+end;
+
+procedure TSettingForm.OKButtonClick(Sender: TObject);
+begin
+  SaveSettings;
+  FBookmarkList.SaveToFile(ExtractFilePath(Application.ExeName) + 'bookmarks.json');
+  FAppSettings.SaveToFile(ExtractFilePath(Application.ExeName) + 'settings.json');
+  MessageDlg('設定しました', TMsgDlgType.mtInformation, [mbOK], 0);
+end;
+
+procedure TSettingForm.LoadSettings;
+begin
+  ColorBox1.Selected := FAppSettings.ExplorerColors.FocusedBackgroundColor;
+  ColorBox2.Selected := FAppSettings.ExplorerColors.UnfocusedBackgroundColor;
+  // フォーカス時
+  ColorBox3.Selected := FAppSettings.ExplorerColors.FocusedSelectionColor;
+  ColorBox4.Selected := FAppSettings.ExplorerColors.FocusedSelectionBorderColor;
+  ColorBox5.Selected := FAppSettings.ExplorerColors.FocusedSelectionTextColor;
+  // 非フォーカス時
+  ColorBox6.Selected := FAppSettings.ExplorerColors.UnfocusedSelectionColor;
+  ColorBox7.Selected := FAppSettings.ExplorerColors.UnfocusedSelectionBorderColor;
+  ColorBox8.Selected := FAppSettings.ExplorerColors.UnfocusedSelectionTextColor;
+  // エクスプローラフォント
+  FontCBox1.FontName := FAppSettings.ExplorerFont.Name;
+  UpDown1.Position := FAppSettings.ExplorerFont.Size;
+  // コンソールフォント
+  FontCBox2.FontName := FAppSettings.ConsoleFont.Name;
+  UpDown2.Position := FAppSettings.ConsoleFont.Size;
+  // その他設定
+  CheckBox1.Checked := FAppSettings.OtherSettings.IsShowHiddenFiles;
+  CheckBox2.Checked := FAppSettings.OtherSettings.IsShowHorizontalGridLines;
+  CheckBox3.Checked := FAppSettings.OtherSettings.IsShowVerticalGridLines;
+end;
+
+procedure TSettingForm.CancelButtonClick(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TSettingForm.DeleteButtonClick(Sender: TObject);
+var
+  Item: TBookmarkItem;
+
+begin
+  var Index := LV1.ItemIndex;
+  if Index <> - 1 then
+  begin
+    Item.Command := LV1.Items[Index].Caption;
+    Item.Path := LV1.Items[Index].SubItems[0];
+    FBookmarkList.Delete(Item);
+  end;
+  CommandLEdit.Text := '';
+  PathLEdit.Text := '';
+  ListupBookmarks;
+end;
+
+procedure TSettingForm.FormCreate(Sender: TObject);
+var
+  FileName: string;
+
+begin
+  DragAcceptFiles(Handle, True);
+  PageControl1.ActivePageIndex := 0;
+
+  FBookmarkList := TBookmarkList.Create;
+  FileName := ExtractFilePath(Application.ExeName) + 'bookmarks.json';
+  if FileExists(FileName) then
+    FBookmarkList.LoadFromFile(FileName);
+
+  FileName := ExtractFilePath(Application.ExeName) + 'settings.json';
+  if FileExists(FileName) then
+    FAppSettings.LoadFromFile(FileName);
+
+  LoadSettings;
+  ListupBookmarks;
+end;
+
+procedure TSettingForm.FormDestroy(Sender: TObject);
+begin
+  FBookmarkList.Free;
+end;
+
+procedure TSettingForm.ListupBookmarks;
+begin
+  LV1.Items.Clear;
+  for var i := 0 to FBookmarkList.Count - 1 do
+  begin
+    var Bookmark := FBookmarkList.Item(i);
+    var Item := LV1.Items.Add;
+    Item.Caption := Bookmark.Command;
+    Item.SubItems.Add(Bookmark.Path);
+  end;
+end;
+
+procedure TSettingForm.LV1SelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  CommandLEdit.Text := Item.Caption;
+  PathLEdit.Text := Item.SubItems[0];
+end;
+
+procedure TSettingForm.ReplaceButtonClick(Sender: TObject);
+var
+  OldItem, NewItem: TBookmarkItem;
+
+begin
+  var Index := LV1.ItemIndex;
+  if Index <> - 1 then
+  begin
+    OldItem.Command := LV1.Items[Index].Caption;
+    OldItem.Path := LV1.Items[Index].SubItems[0];
+    NewItem.Command := CommandLEdit.Text;
+    NewItem.Path := PathLEdit.Text;
+    if not FBookmarkList.Replace(OldItem, NewItem) then
+      MessageDlg('登録に失敗しました', TMsgDlgType.mtError, [mbOK], 0);
+  end;
+  ListupBookmarks;
+end;
+
+procedure TSettingForm.SaveSettings;
+begin
+  FAppSettings.ExplorerColors.FocusedBackgroundColor := ColorBox1.Selected;
+  FAppSettings.ExplorerColors.UnfocusedBackgroundColor := ColorBox2.Selected;
+  // フォーカス時
+  FAppSettings.ExplorerColors.FocusedSelectionColor := ColorBox3.Selected;
+  FAppSettings.ExplorerColors.FocusedSelectionBorderColor := ColorBox4.Selected;
+  FAppSettings.ExplorerColors.FocusedSelectionTextColor := ColorBox5.Selected;
+  // 非フォーカス時
+  FAppSettings.ExplorerColors.UnfocusedSelectionColor := ColorBox6.Selected;
+  FAppSettings.ExplorerColors.UnfocusedSelectionBorderColor := ColorBox7.Selected;
+  FAppSettings.ExplorerColors.UnfocusedSelectionTextColor := ColorBox8.Selected;
+  // エクスプローラフォント
+  FAppSettings.ExplorerFont.Name := FontCBox1.FontName;
+  FAppSettings.ExplorerFont.Size := UpDown1.Position;
+  // コンソールフォント
+  FAppSettings.ConsoleFont.Name := FontCBox2.FontName;
+  FAppSettings.ConsoleFont.Size := UpDown2.Position;
+  // その他設定
+  FAppSettings.OtherSettings.IsShowHiddenFiles := CheckBox1.Checked;
+  FAppSettings.OtherSettings.IsShowHorizontalGridLines := CheckBox2.Checked;
+  FAppSettings.OtherSettings.IsShowVerticalGridLines := CheckBox3.Checked;
+end;
+
+procedure TSettingForm.WMDropFiles(var Msg: TMessage);
+var
+  FileName: array [0..255] of Char;
+
+begin
+  var Count := DragQueryFile(Msg.WParam, $FFFFFFFF, FileName, 255);
+  if Count > 1 then
+  begin
+    MessageDlg('複数ファイルは選択できません', mtError, [mbOK], 0);
+    Exit;
+  end;
+  DragQueryFile(Msg.WParam, 0, FileName, 255);
+  if not TDirectory.Exists(FileName) then
+  begin
+    MessageDlg('フォルダのみが登録できます', mtError, [mbOK], 0);
+    Exit;
+  end;
+  CommandLEdit.SetFocus;
+  PathLEdit.Text := FileName;
+  DragFinish(Msg.WParam);
+end;
+
+end.

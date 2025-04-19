@@ -1,0 +1,16 @@
+program DWFiler;
+
+uses
+  Vcl.Forms,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  ColorSetUnit in 'ColorSetUnit.pas' {ColorSetForm};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TColorSetForm, ColorSetForm);
+  Application.Run;
+end.

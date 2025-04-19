@@ -1,0 +1,73 @@
+object BookmarkForm: TBookmarkForm
+  Left = 0
+  Top = 0
+  Caption = #12362#27671#12395#20837#12426#12398#30331#37682
+  ClientHeight = 441
+  ClientWidth = 624
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  TextHeight = 15
+  object Panel1: TPanel
+    Left = 0
+    Top = 0
+    Width = 624
+    Height = 400
+    Align = alClient
+    BevelOuter = bvNone
+    TabOrder = 0
+    ExplicitHeight = 273
+    object SG1: TStringGrid
+      Left = 0
+      Top = 0
+      Width = 624
+      Height = 400
+      Align = alClient
+      ColCount = 2
+      FixedCols = 0
+      TabOrder = 0
+      OnMouseDown = SG1MouseDown
+      ExplicitLeft = 39
+      ExplicitTop = 153
+      ExplicitWidth = 577
+      ExplicitHeight = 120
+      ColWidths = (
+        80
+        471)
+    end
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 400
+    Width = 624
+    Height = 41
+    Align = alBottom
+    BevelOuter = bvNone
+    TabOrder = 1
+    ExplicitLeft = 104
+    ExplicitTop = 320
+    ExplicitWidth = 185
+    object Button1: TButton
+      Left = 237
+      Top = 8
+      Width = 150
+      Height = 25
+      Caption = 'OK'
+      TabOrder = 0
+    end
+  end
+  object PopupMenu1: TPopupMenu
+    Left = 304
+    Top = 224
+    object N1: TMenuItem
+      Caption = #36861#21152
+    end
+    object N2: TMenuItem
+      Caption = #21066#38500
+    end
+  end
+end

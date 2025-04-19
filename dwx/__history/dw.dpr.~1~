@@ -1,0 +1,22 @@
+program dwx;
+
+uses
+  Vcl.Forms,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  ListBoxFrameUnit in 'ListBoxFrameUnit.pas' {ListBoxFrame: TFrame},
+  SortSelectUnit in 'SortSelectUnit.pas' {SortSelectForm},
+  ExplorerUtils in 'ExplorerUtils.pas',
+  InputUnit in 'InputUnit.pas' {InputForm},
+  FileConfirm in 'FileConfirm.pas' {ConfirmForm};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TSortSelectForm, SortSelectForm);
+  Application.CreateForm(TInputForm, InputForm);
+  Application.CreateForm(TConfirmForm, ConfirmForm);
+  Application.Run;
+end.

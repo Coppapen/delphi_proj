@@ -1,0 +1,70 @@
+unit InputUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls;
+
+type
+  TInputForm = class(TForm)
+    Edit1: TEdit;
+    procedure Edit1KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormShow(Sender: TObject);
+  private
+    { Private êÈåæ }
+    FInputText: string;
+  public
+    { Public êÈåæ }
+    procedure SetCaption(const AText: string);
+    procedure SetInputText(const AText: string);
+    property InputText: string read FInputText;
+  end;
+
+var
+  InputForm: TInputForm;
+
+implementation
+
+{$R *.dfm}
+
+{ TInputForm }
+
+procedure TInputForm.Edit1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Key = VK_RETURN then
+  begin
+    FInputText := Edit1.Text;
+    InputForm.Close;
+  end;
+end;
+
+procedure TInputForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Key = VK_ESCAPE then
+  begin
+    FInputText := '';
+    InputForm.Close;
+  end;
+end;
+
+procedure TInputForm.FormShow(Sender: TObject);
+begin
+  FInputText := '';
+  Edit1.SelStart := Length(Edit1.Text);
+end;
+
+procedure TInputForm.SetCaption(const AText: string);
+begin
+  InputForm.Caption := AText;
+end;
+
+procedure TInputForm.SetInputText(const AText: string);
+begin
+  Edit1.Text := AText;
+end;
+
+end.

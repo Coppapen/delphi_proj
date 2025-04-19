@@ -1,0 +1,1484 @@
+unit ListBoxFrameUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Winapi.ShellAPI, Winapi.CommCtrl, System.IOUtils,
+  Winapi.ShlObj, System.Math, System.StrUtils, Vcl.ExtCtrls, System.Generics.Collections, System.Generics.Defaults,
+  Vcl.Clipbrd, System.Win.ComObj, Winapi.ActiveX, Vcl.ComCtrls, Vcl.Menus, MPShellUtilities, System.UITypes,
+  SortSelectUnit, ExplorerUtils, FileConfirm, System.DateUtils, InputUnit, System.Types, FileMonitor,
+  System.SyncObjs;
+
+const
+  SHARE_INFO_LEVEL_1 = 1;
+  MAX_PREFERRED_LENGTH = DWORD($FFFFFFFF);
+  NERR_Success = 0;
+
+type
+  PShareInfo = ^TShareInfo;
+  TShareInfo = packed record
+    shi1_netname: PChar;
+    shi1_type: DWORD;
+    shi1_remark: PChar;
+  end;
+
+  TDataListItem = class(TObject)
+  strict private
+    FFileName: string;
+    FFileExt: string;
+    FFileSize: Int64;
+    FFileDate: TDateTime;
+    FIcon: TIcon;
+    FFileAttrib: Integer;
+  public
+  published
+    property FileName:   string    read FFileName   write FFileName;
+    property FileExt:    string    read FFileExt    write FFileExt;
+    property FileSize:   Int64     read FFileSize   write FFileSize;
+    property FileDate:   TDateTime read FFileDate   write FFileDate;
+    property Icon:       TIcon     read FIcon       write FIcon;
+    property FileAttrib: Integer   read FFileAttrib write FFileAttrib;
+  end;
+
+  TFileListItem = class(TDataListItem);
+
+  TListBoxFrame = class(TFrame)
+    ListBox1: TListBox;
+    Panel1: TPanel;
+    Edit1: TEdit;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Edit2: TEdit;
+    Label1: TLabel;
+    PopupMenu1: TPopupMenu;
+    PopupMenu2: TPopupMenu;
+    procedure Edit2KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure Edit2KeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FrameEnter(Sender: TObject);
+    procedure FrameExit(Sender: TObject);
+    procedure FrameResize(Sender: TObject);
+    procedure ListBox1Data(Control: TWinControl; Index: Integer;
+      var Data: string);
+    procedure ListBox1DrawItem(Control: TWinControl; Index: Integer;
+      Rect: TRect; State: TOwnerDrawState);
+    procedure ListBox1Enter(Sender: TObject);
+    procedure ListBox1KeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure ListBox1KeyPress(Sender: TObject; var Key: Char);
+    procedure ListBox1KeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+  private
+    { Private 宣言 }
+    FBookmarkList: TBookmarkList;
+    FCurrentDirectory: string;
+    FExplorerHistory: TExplorerHistory;
+    FFileList: TList<TDataListItem>;
+    FItemIndex: Integer;
+    FIsFocused: Boolean;
+    FIsRepeatSameOperation: Boolean;
+    FIsShowHiddenFiles: Boolean;
+    FListItemsSelected: TArray<Boolean>;
+    FNetworkPath: string;
+    FSelectedItems: TList<TDataListItem>;
+    // ファイル更新監視用
+    FFileMonitor: TFileMonitor;
+    FMutex: TMutex;
+    FEvent: TEvent;
+    function AddressBarText(const Path: string): string;
+    function FileTimeToDateTime(const Value: TFileTime): TDateTime;
+    function FileIndexInFileList(const FileName: string): Integer;
+    function FileOperationWithDialog(const SrcFile, DestFile: string;
+      OperationType: TFileOperationType): Boolean;
+    function FolderOperationWithDialog(const SrcFolder, DestFolder: string;
+      OperationType: TFileOperationType): Boolean;
+    procedure ChangeShowHiddenFiles;
+    procedure ClearFileList;
+    procedure CopyPathToClipboard(const Path: string);
+    procedure CreateNewDir;
+    procedure CreateNewFile;
+    procedure DeleteFiles;
+    procedure Deselected;
+    procedure IncrementalSearch(const Key: Char); overload;
+    procedure IncrementalSearch(const Keyword: string); overload;
+    procedure FileChange(Sender: TObject);
+    procedure FullSelect;
+    procedure GoToParentDirectory;
+    procedure GoToSpecifiedDirectory;
+    procedure LoadBookmarks;
+    procedure LoadSettings;
+    procedure MenuItemDrawItem(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
+      Selected: Boolean);
+    procedure MenuItemMeasureItem(Sender: TObject; ACanvas: TCanvas;
+      var Width, Height: Integer);
+    procedure NetworkPopupMenuClick(Sender: TObject);
+    procedure OpenExplorer;
+    procedure OpenFile(const FileName: string);
+    procedure PopupMenuClick(Sender: TObject);
+    procedure RenameFile;
+    procedure SetFilesListToItems(Path: string);
+    procedure ShowBookmarks;
+    procedure ShowContextMenu;
+    procedure ShowInputBox(const CaptionStr: string);
+    procedure ShowNetworkPopup(const Path: string);
+    procedure ShowSelectedFileStatus;
+    procedure Sort;
+  public
+    { Public 宣言 }
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    function CurrentLineItemDir(var Path: string): Boolean;
+    function CurrentLineItemPath: string;
+    procedure ChangeDirectory(const Path: string);
+    procedure CopyFiles(const DestFolderPath: string);
+    procedure MoveFiles(const DestFolderPath: string);
+    procedure ReloadListBox;
+    property CurrentDirectory: string read FCurrentDirectory;
+ end;
+
+function NetShareEnum(server: PChar; level: DWORD; var buf: Pointer;
+  prefmaxlen: DWORD; var entriesread, totalentries: DWORD;
+  var resumehandle: DWORD): DWORD; stdcall; external 'Netapi32.dll' name 'NetShareEnum';
+
+implementation
+
+{$R *.dfm}
+
+uses
+  MainUnit;
+
+var
+  SortColumns: array [1..4] of Integer;
+  SortColumnIndex: Integer;
+  SortSettings: TSortSettings;
+
+function SortFunction(const Left, Right: TDataListItem): Integer;
+var
+  Int1, Int2: Int64;
+  Str1, Str2: string;
+  Ext1, Ext2: string;
+  Date1, Date2: TDateTime;
+  Dir1, Dir2: Boolean;
+  TempInt: Integer;
+  Settings: TSortSettings;
+
+begin
+  Settings := SortSettings;
+  Result := 0;
+  Dir1 := (Left.FileAttrib and faDirectory) <> 0;
+  Dir2 := (Right.FileAttrib and faDirectory) <> 0;
+  Str1 := Left.FileName;
+  Str2 := Right.FileName;
+  Ext1 := ExtractFileExt(Left.FileName);
+  Ext2 := ExtractFileExt(Right.FileName);
+  Int1 := Left.FileSize;
+  Int2 := Right.FileSize;
+  Date1 := Left.FileDate;
+  Date2 := Right.FileDate;
+  if Settings.IsIgnoreCase then
+    TempInt := CompareText(Str1, Str2)
+  else
+    TempInt := CompareStr(Str1, Str2);
+  case SortColumnIndex of
+    1:
+      begin
+        if Settings.IsFoldersAtTheTop then
+        begin
+          if Dir1 and not Dir2 then
+            Result := - 1
+          else
+          if not Dir1 and Dir2 then
+            Result := 1
+          else
+          if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+            Result := SortColumns[SortColumnIndex] * TempInt
+        end else
+          Result := SortColumns[SortColumnIndex] * TempInt;
+      end;
+    2:
+      begin
+        if Settings.IsFoldersAtTheTop then
+        begin
+          if Dir1 and not Dir2 then
+            Result := - 1
+          else
+          if not Dir1 and Dir2 then
+            Result := 1
+          else
+          if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+          begin
+            if Ext1 = Ext2 then
+              Result := SortColumns[SortColumnIndex] * TempInt
+            else
+              Result := SortColumns[SortColumnIndex] * CompareText(Ext1, Ext2);
+          end;
+        end else
+        begin
+          if Ext1 = Ext2 then
+            Result := SortColumns[SortColumnIndex] * TempInt
+          else
+            Result := SortColumns[SortColumnIndex] * CompareText(Ext1, Ext2);
+        end;
+      end;
+    3:
+      begin
+        if Settings.IsFoldersAtTheTop then
+        begin
+          if Dir1 and not Dir2 then
+            Result := - 1
+          else
+          if not Dir1 and Dir2 then
+            Result := 1
+          else
+          if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+          begin
+            if Int1 = Int2 then
+              Result := SortColumns[SortColumnIndex] * TempInt
+            else
+              Result := SortColumns[SortColumnIndex] * CompareValue(Int1, Int2);
+          end;
+        end else
+          Result := SortColumns[SortColumnIndex] * CompareValue(Int1, Int2);
+      end;
+    4:
+      begin
+        if Settings.IsFoldersAtTheTop then
+        begin
+          if Dir1 and not Dir2 then
+            Result := - 1
+          else
+          if not Dir1 and Dir2 then
+            Result := 1
+          else
+          if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+          begin
+            if Date1 = Date2 then
+              Result := SortColumns[SortColumnIndex] * TempInt
+            else
+              Result := SortColumns[SortColumnIndex] * CompareDateTime(Date1, Date2);
+          end;
+        end else
+          Result := SortColumns[SortColumnIndex] * CompareDateTime(Date1, Date2);
+      end
+  end;
+end;
+
+function TListBoxFrame.AddressBarText(const Path: string): string;
+var
+  p: string;
+  Dirs: TArray<string>;
+
+begin
+  p := StringReplace(Path, '\\', '', []);
+  Dirs := SplitString(p, '\');
+  Result := string.Join('  >  ', Dirs);
+end;
+
+procedure TListBoxFrame.ChangeDirectory(const Path: string);
+var
+  Index: Integer;
+
+begin
+  FFileMonitor.Pause;
+  if not TDirectory.Exists(Path) then
+  begin
+    MainForm.AddOperationHistory('ディレクトリを変更できません');
+    Exit;
+  end;
+  if Path = ExcludeTrailingPathDelimiter(FCurrentDirectory) then
+    Index := ListBox1.ItemIndex
+  else
+    Index := 0;
+  UpDate;
+  Edit1.Text := AddressBarText(ExcludeTrailingPathDelimiter(Path));
+  Edit1.SelStart := Length(Edit1.Text);
+  ListBox1.Clear;
+  SetFilesListToItems(IncludeTrailingPathDelimiter(Path));
+  ListBox1.Count := FFileList.Count;
+  Panel2.Caption := '';
+  Panel4.Caption := Format('%d 個の項目', [FFileList.Count]);
+  SortColumnIndex := SortSettings.SortIndex;
+  SortColumns[SortColumnIndex] := SortSettings.SortOrder;
+  FFileList.Sort(TComparer<TDataListItem>.Construct(SortFunction));
+  if FFileList.Count > 0 then
+    ListBox1.ItemIndex := Index;
+  ListBox1.Invalidate;
+  FExplorerHistory.AddHistory(Path);
+  FCurrentDirectory := IncludeTrailingPathDelimiter(Path);
+  FFileMonitor.ChangeDirectory(Path);
+  FFileMonitor.Restart;
+end;
+
+procedure TListBoxFrame.ChangeShowHiddenFiles;
+begin
+  FIsShowHiddenFiles := not FIsShowHiddenFiles;
+  if FIsShowHiddenFiles then
+    MainForm.AddOperationHistory('隠しファイルを表示します')
+  else
+    MainForm.AddOperationHistory('隠しファイルを表示しません');
+  ReloadListBox;
+end;
+
+procedure TListBoxFrame.ClearFileList;
+var
+  i: Integer;
+
+begin
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    FFileList[i].Icon.Free;
+    FFileList[i].Free;
+  end;
+  FFileList.Clear;
+end;
+
+procedure TListBoxFrame.CopyFiles(const DestFolderPath: string);
+var
+  DestFileName: string;
+  FileName: string;
+  LockedFile: string;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+    Exit;
+  FFileMonitor.Pause;
+  MainForm.AddOperationHistory('コピーを開始します');
+  FIsRepeatSameOperation := False;
+  for i := 0 to FSelectedItems.Count - 1 do
+  begin
+    FileName := FSelectedItems[i].FileName;
+    DestFileName := DestFolderPath + ExtractFileName(FileName);
+    if FSelectedItems[i].FileAttrib and faDirectory <> 0 then
+    begin
+      if not FolderOperationWithDialog(FSelectedItems[i].FileName, DestFileName, foFileCopy) then
+        Exit;
+    end else
+    begin
+      if not FileOperationWithDialog(FSelectedItems[i].FileName, DestFileName, foFileCopy) then
+        Exit;
+    end;
+  end;
+  MainForm.AddOperationHistory('コピーが終了しました');
+  Deselected;
+  FFileMonitor.Restart;
+end;
+
+function TListBoxFrame.FileOperationWithDialog(const SrcFile,
+  DestFile: string; OperationType: TFileOperationType): Boolean;
+
+  function AddUnderBar(const FileName: string): string;
+  begin
+    Result := FileName;
+    while FileExists(Result) do
+      Result := ChangeFileExt(Result, '_' + ExtractFileExt(Result));
+    Result := ExtractFileName(Result);
+  end;
+
+const
+  MsgCopy = 'コピー';
+  MsgMove = '移動';
+  MsgDelete = '削除';
+
+var
+  DestFileFolder: string;
+  DestFileName: string;
+  ConfirmType: TConfirmType;
+  Msg: string;
+  p: TPoint;
+
+begin
+  DestFileFolder := ExtractFilePath(DestFile);
+  DestFileName := ExtractFileName(DestFile);
+  case OperationType of
+    foFileCopy: Msg := MsgCopy;
+    foFileMove: Msg := MsgMove;
+    foFileDelete: Msg := MsgDelete;
+  end;
+  if (OperationType <> foFileDelete) and FileExists(DestFile) then
+  begin
+    if FIsRepeatSameOperation then
+      ConfirmType := ConfirmForm.Result.ConfirmType
+    else
+    begin
+      p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+      ConfirmForm.Left := p.X;
+      ConfirmForm.Top := p.Y;
+      ConfirmForm.Init(SrcFile, DestFile);
+      ConfirmForm.ShowModal;
+      ConfirmType := ConfirmForm.Result.ConfirmType;
+      FIsRepeatSameOperation := ConfirmForm.IsRepeatSameOperation;
+    end;
+    case ConfirmType of
+      ctSkip, ctCancel:
+        begin
+          MainForm.AddOperationHistory(Format('%sをキャンセルしました [ %s ]', [Msg, SrcFile]));
+          Exit(False);
+        end;
+      ctAddUndereBar: DestFileName := AddUnderBar(DestFile);
+      ctRename: DestFileName := ConfirmForm.Result.NewFileName;
+    end;
+  end;
+  Result := DoFileOperation(SrcFile, DestFileFolder + DestFileName, OperationType);
+  if Result then
+    MainForm.AddOperationHistory(Format('%sしました [ %s ]', [Msg, SrcFile]))
+  else
+    MainForm.AddOperationHistory(Format('%sに失敗しました [ %s ]', [Msg, SrcFile]))
+end;
+
+function TListBoxFrame.FolderOperationWithDialog(const SrcFolder,
+  DestFolder: string; OperationType: TFileOperationType): Boolean;
+
+  procedure CopyFolderAttributes(const SrcDir, DestDir: string);
+  var
+    SrcAttributes: DWORD;
+
+  begin
+    SrcAttributes := GetFileAttributes(PChar(SrcDir));
+    if SrcAttributes = INVALID_FILE_ATTRIBUTES then
+    begin
+      MainForm.AddOperationHistory(Format('属性の取得に失敗しました [ %s ]', [SrcDir]));
+      Exit;
+    end;
+    if not SetFileAttributes(PChar(DestDir), SrcAttributes) then
+      MainForm.AddOperationHistory(Format('属性の設定に失敗しました [ %s ]', [DestDir]));
+  end;
+
+var
+  FileOp: IFileOperation;
+  Rec: TSearchRec;
+  SrcFile, DestFile: string;
+
+begin
+  CoInitialize(nil);
+  try
+    FileOp := CreateComObject(CLSID_FileOperation) as IFileOperation;
+    if not TDirectory.Exists(DestFolder) and (OperationType <> foFileDelete) then
+    begin
+      CreateDir(DestFolder);
+      CopyFolderAttributes(SrcFolder, DestFolder);
+    end;
+    if FindFirst(SrcFolder + '\*', faAnyFile, Rec) = 0 then
+    begin
+      repeat
+        if (Rec.Name <> '.') and (Rec.Name <> '..') then
+        begin
+          SrcFile := IncludeTrailingPathDelimiter(SrcFolder) + Rec.Name;
+          DestFile := IncludeTrailingPathDelimiter(DestFolder) + Rec.Name;
+          if Rec.Attr and faDirectory = faDirectory then
+            Result := FolderOperationWithDialog(SrcFile, DestFile, OperationType)
+          else
+            Result := FileOperationWithDialog(SrcFile, DestFile, OperationType);
+          if not Result then
+            Exit;
+        end;
+      until FindNext(Rec) <> 0;
+      FindClose(Rec);
+    end;
+    if (OperationType = foFileMove) or (OperationType = foFileDelete) then
+      DoFileOperation(SrcFolder, '', foFileDelete);
+    FileOp.PerformOperations;
+  finally
+    CoUninitialize;
+  end;
+end;
+
+procedure TListBoxFrame.CopyPathToClipboard(const Path: string);
+begin
+  Clipboard.AsText := Path;
+  MainForm.AddOperationHistory(Format('パスをクリップボードにコピーしました [ %s ]',
+    [Path]));
+end;
+
+constructor TListBoxFrame.Create(AOwner: TComponent);
+var
+  SHFileInfo: TSHFileInfo;
+  ImgListHandle: THandle;
+  i: Integer;
+
+begin
+  inherited;
+  ListBox1.DoubleBuffered := True;
+  FFileList := TList<TDataListItem>.Create;
+  // icon
+  InitCommonControls;
+  ImgListHandle := SHGetFileInfo('', 0, SHFileInfo, SizeOf(SHFileInfo),
+    SHGFI_ICON or SHGFI_SMALLICON or SHGFI_SYSICONINDEX);
+  ListView_SetImageList(ListBox1.Handle, ImgListHandle, LVSIL_SMALL);
+  // sort
+  SortSettings.SortIndex := 1;
+  SortSettings.SortOrder := 1;
+  SortSettings.IsFoldersAtTheTop := True;
+  SortSettings.IsIgnoreCase := True;
+  SortColumnIndex := SortSettings.SortIndex;
+  for i := Low(SortColumns) to High(SortColumns) do
+    SortColumns[i] := 1;
+  FSelectedItems := TList<TDataListItem>.Create;
+  FIsShowHiddenFiles := False;
+  LoadBookmarks;
+  ListBox1.ItemHeight := ListBox1.Canvas.TextHeight('あ') + 10;
+  FExplorerHistory := TExplorerHistory.Create;
+  FItemIndex := - 1;
+  // ファイル更新監視用スレッド
+  FMutex := TMutex.Create(nil, True, 'Global\MyMutex');
+  FEvent := TEvent.Create(nil, True, False, 'Global\MyEvent');
+  FFileMonitor := TFileMonitor.Create(FMutex, FEvent);
+  FFileMonitor.OnChange := FileChange;
+  FEvent.SetEvent;
+  LoadSettings;
+end;
+
+procedure TListBoxFrame.CreateNewDir;
+var
+  NewName: string;
+  p: TPoint;
+
+begin
+  FFileMonitor.Pause;
+  InputForm.Init('新しいフォルダの作成', 'フォルダ名', '');
+  p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+  InputForm.Left := p.X;
+  InputForm.Top := p.Y;
+  InputForm.ShowModal;
+  NewName := InputForm.InputText;
+  if TDirectory.Exists(FCurrentDirectory + NewName) then
+  begin
+    MainForm.AddOperationHistory(Format('既に同じ名前のフォルダが存在します [ %s ]',
+      [NewName]));
+  end else
+  begin
+    if CreateDir(FCurrentDirectory + NewName) then
+    begin
+      MainForm.AddOperationHistory(Format('新規フォルダを作成しました [ %s ]',
+        [NewName]));
+      ReloadListBox;
+      ListBox1.ItemIndex := FileIndexInFileList(FCurrentDirectory + NewName);
+    end else
+    begin
+      MainForm.AddOperationHistory(Format('新規フォルダの作成に失敗しました [ %s ]',
+        [NewName]));
+    end;
+  end;
+  FFileMonitor.Restart;
+end;
+
+procedure TListBoxFrame.CreateNewFile;
+begin
+
+end;
+
+function TListBoxFrame.CurrentLineItemDir(var Path: string): Boolean;
+begin
+  Result := False;
+  if ListBox1.ItemIndex <> - 1 then
+  begin
+    Result := FFileList[ListBox1.ItemIndex].FileAttrib and faDirectory <> 0;
+    if Result then
+      Path := FFileList[ListBox1.ItemIndex].FileName;
+  end;
+end;
+
+function TListBoxFrame.CurrentLineItemPath: string;
+begin
+  if ListBox1.ItemIndex <> - 1 then
+    Result := FFileList[ListBox1.ItemIndex].FileName;
+end;
+
+procedure TListBoxFrame.DeleteFiles;
+const
+  Msg = '選択されたファイルを削除してよろしいですか' + #13 + '[ %s ]';
+
+var
+  DestFileName: string;
+  FileName: string;
+  LockedFile: string;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+    Exit;
+  FFileMonitor.Pause;
+  MainForm.AddOperationHistory('削除を開始します');
+  FIsRepeatSameOperation := False;
+  for i := 0 to FSelectedItems.Count - 1 do
+  begin
+    FileName := FSelectedItems[i].FileName;
+    if i = 0 then
+    begin
+      if Application.MessageBox(PChar(Format(Msg, [FileName])), '確認',
+        MB_YESNO or MB_ICONQUESTION or MB_DEFBUTTON2 or MB_SYSTEMMODAL) = IDNO then
+      begin
+        MainForm.AddOperationHistory('削除がキャンセルされました');
+        Exit;
+      end;
+    end;
+    if FSelectedItems[i].FileAttrib and faDirectory <> 0 then
+    begin
+      if not FolderOperationWithDialog(FSelectedItems[i].FileName, DestFileName, foFileDelete) then
+        Exit;
+    end else
+    begin
+      if not FileOperationWithDialog(FSelectedItems[i].FileName, DestFileName, foFileDelete) then
+        Exit;
+    end;
+  end;
+  MainForm.AddOperationHistory('削除が終了しました');
+  ReloadListBox;
+  FFileMonitor.Restart;
+end;
+
+procedure TListBoxFrame.Deselected;
+var
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+    Exit;
+  for i := 0 to Length(FListItemsSelected) - 1 do
+    FListItemsSelected[i] := False;
+  FSelectedItems.Clear;
+  Panel2.Caption := '';
+  ListBox1.Invalidate;
+end;
+
+destructor TListBoxFrame.Destroy;
+var
+  i: Integer;
+
+begin
+  FBookmarkList.Free;
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    FFileList[i].Icon.Free;
+    FFileList[i].Free;
+  end;
+  FFileList.Free;
+  FSelectedItems.Free;
+  FExplorerHistory.Free;
+  // スレッドの解放
+  FMutex.Free;
+  FEvent.Free;
+  if Assigned(FFileMonitor) then
+  begin
+    FFileMonitor.Terminate;
+    FFileMonitor.WaitFor;
+    FFileMonitor.Free;
+  end;
+  inherited;
+end;
+
+procedure TListBoxFrame.Edit2KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  case Key of
+    VK_ESCAPE, VK_RETURN:
+      begin
+        Panel3.Visible := False;
+        Listbox1.SetFocus;
+      end;
+  end;
+end;
+
+procedure TListBoxFrame.Edit2KeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Edit2.Text <> '' then
+    IncrementalSearch(Edit2.Text);
+end;
+
+procedure TListBoxFrame.FileChange(Sender: TObject);
+begin
+  if not FFileMonitor.Paused then
+    ReloadListBox;
+end;
+
+function TListBoxFrame.FileIndexInFileList(const FileName: string): Integer;
+var
+  i: Integer;
+
+begin
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    if FFileList[i].FileName = FileName then
+      Exit(i);
+  end;
+  Result := - 1;
+end;
+
+function TListBoxFrame.FileTimeToDateTime(const Value: TFileTime): TDateTime;
+var
+  SystemTime: TSystemTime;
+  TempTime: TFileTime;
+
+begin
+  try
+    FileTimeToLocalFileTime(Value, TempTime);
+    FileTimeToSystemTime(TempTime, SystemTime);
+    Result := SystemTimeToDateTime(SystemTime);
+  except
+    Result := 0;
+  end;
+end;
+
+procedure TListBoxFrame.FrameEnter(Sender: TObject);
+begin
+  FIsFocused := True;
+  ListBox1.Color := clBlack;//clWebAliceBlue;
+  ListBox1.ItemIndex := FItemIndex;
+end;
+
+procedure TListBoxFrame.FrameExit(Sender: TObject);
+begin
+  FIsFocused := False;
+  ListBox1.Color := clBlack;//clWindow;
+  FItemIndex := ListBox1.ItemIndex;
+  ListBox1.ItemIndex := - 1;
+end;
+
+procedure TListBoxFrame.FrameResize(Sender: TObject);
+begin
+  Edit1.SelStart := Length(Edit1.Text);
+  ListBox1.Refresh;
+end;
+
+procedure TListBoxFrame.FullSelect;
+var
+  i: Integer;
+
+begin
+  FSelectedItems.Clear;
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    FSelectedItems.Add(FFileList[i]);
+    FListItemsSelected[i] := True;
+  end;
+  ShowSelectedFileStatus;
+  ListBox1.Invalidate;
+end;
+
+procedure TListBoxFrame.GoToParentDirectory;
+var
+  DirName, Path: string;
+  Index: Integer;
+
+begin
+  FFileMonitor.Pause;
+  DirName := ExcludeTrailingPathDelimiter(FCurrentDirectory);
+  Path := ExtractFileDir(DirName);
+  ChangeDirectory(Path);
+  Index := FileIndexInFileList(DirName);
+  ListBox1.ItemIndex := Index;
+  FFileMonitor.Restart;
+end;
+
+procedure TListBoxFrame.GoToSpecifiedDirectory;
+var
+  p: TPoint;
+  Path: string;
+
+begin
+  InputForm.Init('指定したアドレスへ移動', 'アドレス', '');
+  p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+  InputForm.Left := p.X;
+  InputForm.Top := p.Y;
+  InputForm.ShowModal;
+  Path := InputForm.InputText;
+  if TDirectory.Exists(Path) then
+    ChangeDirectory(Path)
+  else
+  if not InputForm.IsCancel then
+    MainForm.AddOperationHistory(Format('指定したアドレスが存在しません [ %s ]', [Path]));
+end;
+
+procedure TListBoxFrame.IncrementalSearch(const Key: Char);
+var
+  StartIndex: Integer;
+  i: Integer;
+
+begin
+  if ListBox1.Count = 0 then
+    Exit;
+  StartIndex := ListBox1.ItemIndex + 1;
+  if StartIndex > ListBox1.Count - 1 then
+    StartIndex := ListBox1.Count - 1
+  else
+  begin
+    for i := StartIndex to ListBox1.Count - 1 do
+    begin
+      if StartsText(Key, ExtractFileName(FFileList[i].FileName)) then
+      begin
+        ListBox1.ItemIndex := i;
+        Exit;
+      end;
+    end;
+  end;
+  for i := 0 to StartIndex - 1 do
+  begin
+    if StartsText(Key, ExtractFileName(FFileList[i].FileName)) then
+    begin
+      ListBox1.ItemIndex := i;
+      Exit;
+    end;
+  end;
+end;
+
+procedure TListBoxFrame.IncrementalSearch(const Keyword: string);
+var
+  FileName: string;
+  kw: string;
+  StartIndex: Integer;
+  i: Integer;
+
+begin
+  if ListBox1.Count = 0 then
+    Exit;
+  kw := LowerCase(Keyword);
+  StartIndex := ListBox1.ItemIndex + 1;
+  if StartIndex > ListBox1.Count - 1 then
+    StartIndex := ListBox1.Count - 1
+  else
+  begin
+    for i := StartIndex to ListBox1.Count - 1 do
+    begin
+      FileName := LowerCase(ExtractFileName(FFileList[i].FileName));
+      if Pos(kw, FileName) <> 0 then
+      begin
+        ListBox1.ItemIndex := i;
+        Exit;
+      end;
+    end;
+  end;
+  for i := 0 to StartIndex - 1 do
+  begin
+    FileName := LowerCase(ExtractFileName(FFileList[i].FileName));
+    if Pos(kw, FileName) <> 0 then
+    begin
+      ListBox1.ItemIndex := i;
+      Exit;
+    end;
+  end;
+end;
+
+procedure TListBoxFrame.ListBox1Data(Control: TWinControl; Index: Integer;
+  var Data: string);
+begin
+  if FFileList.Count > 0 then
+    Data := FFileList.Items[Index].FileName;
+end;
+
+procedure TListBoxFrame.ListBox1DrawItem(Control: TWinControl; Index: Integer;
+  Rect: TRect; State: TOwnerDrawState);
+
+  function FormatSubText(const Item: TDataListItem): string;
+  var
+    ExtStr: string;
+    SizeStr: string;
+    DateStr: string;
+
+  begin
+    ExtStr := Item.FileExt;
+    if Length(ExtStr) > 5 then
+      ExtStr := StringOfChar(Space, 5)
+    else
+      ExtStr := LeftStr(ExtStr + StringOfChar(Space, 5), 5);
+    SizeStr := FormatFileSize(Item.FileSize);
+    if (Item.FileAttrib and faDirectory) <> 0 then
+    begin
+      ExtStr := '';
+      SizeStr := '  <DIR>';
+    end;
+    DateStr := FormatDateTime('yy/mm/dd hh:nn:ss ', Item.FileDate);
+    Result := string.Join(Space, [ExtStr, SizeStr, DateStr]);
+    // resutl の桁数は 32 桁固定
+  end;
+
+  function FormatFileName(const Item: TDataListItem; SubTextLength, IconWidth: Integer): string;
+  var
+    lb: TListBox;
+    CharWidth: Integer;
+    MaxCharsCount: Integer;
+    FileNameLength: Integer;
+    fn: AnsiString;
+
+  begin
+    fn := ExtractFileName(Item.FileName);
+    if ((Item.FileAttrib and faDirectory) <> 0) or
+        (Length(ExtractFileExt(fn)) > 5) then
+    begin
+      fn := ExtractFileName(fn);
+    end else
+      fn := ChangeFileExt(fn, '');
+    lb := (Control as TListBox);
+    CharWidth := lb.Canvas.TextWidth('W');
+    MaxCharsCount := (Rect.Width - IconWidth) div CharWidth;
+    FileNameLength := MaxCharsCount - SubTextLength;
+    if Length(fn) > FileNameLength then
+      Result := GetSubStringByByteCount(AnsiString(fn), FileNameLength - 3) + '..'
+    else
+    begin
+      Result := GetSubStringByByteCount(AnsiString(fn) + StringOfChar(Space, MaxCharsCount),
+        FileNameLength - 1);
+    end;
+  end;
+
+var
+  Path: string;
+  Icon: TIcon;
+  IconWidth: Integer;
+  lb: TListBox;
+  SHFileInfo: TSHFileInfo;
+  FileName: string;
+  SubText: string;
+
+begin
+  Path := FFileList[Index].FileName;
+  lb := (Control as TListBox);
+  with lb.Canvas do
+  begin
+    Brush.Color := lb.Color;
+    FillRect(Rect);
+    // 選択されていたら塗りつぶす
+    if FListItemsSelected[Index] then
+    begin
+      Brush.Color := clWebDarkBlue;//clWebSkyBlue;
+      FillRect(Rect);
+    end;
+    // 現在行に下線を引く
+    if FIsFocused then
+    begin
+      if (odSelected in State) or (odFocused in State) then
+      begin
+        Pen.Color := clBlue;
+        Pen.Width := 3;
+        MoveTo(Rect.Left, Rect.Bottom - 2);
+        LineTo(Rect.Right, Rect.Bottom - 2);
+      end;
+    end;
+    IconWidth := FFileList[Index].Icon.Width;
+    Draw(Rect.Left, Rect.Top, FFileList[Index].Icon);
+    Font.Color := clWhite;//lb.Font.Color;
+    SubText := FormatSubText(FFileList[Index]);
+    FileName := FormatFileName(FFileList[Index], Length(SubText), IconWidth);
+    // アイコンサイズの分だけ右にずらす
+    TextOut(Rect.Left + IconWidth + 2, Rect.Top + 1, FileName + Space + SubText);
+    // フォーカスの点線を消す
+    if (odFocused in State) then
+      DrawFocusRect(Rect);
+  end;
+end;
+
+procedure TListBoxFrame.ListBox1Enter(Sender: TObject);
+var
+  lb: TListBox;
+
+begin
+  lb := TListBox(Sender);
+  if (lb.Count > 0) and (lb.ItemIndex = - 1) then
+    lb.ItemIndex := 0;
+end;
+
+procedure TListBoxFrame.ListBox1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Index: Integer;
+  Path: string;
+
+begin
+  if Shift = [] then
+  begin
+    case Key of
+      VK_LEFT, VK_RIGHT: Key := 0;
+      VK_ESCAPE:
+        begin
+          if Panel3.Visible then
+            Panel3.Visible := False
+          else
+            Deselected;
+        end;
+      VK_RETURN:
+        begin
+          Path := FFileList[ListBox1.ItemIndex].FileName;
+          if TDirectory.Exists(Path) then
+          begin
+            ChangeDirectory(Path);
+            ListBox1.ItemIndex := 0;
+          end else
+          if FileExists(Path) then
+            OpenFile(Path);
+        end;
+      VK_SPACE:
+        begin
+          Index := ListBox1.ItemIndex;
+          if Index = - 1 then
+            Exit;
+          FListItemsSelected[Index] := not FListItemsSelected[Index];
+          if FListItemsSelected[Index] then
+            FSelectedItems.Add(FFileList[Index])
+          else
+            FSelectedItems.Remove(FFileList[Index]);
+          ShowSelectedFileStatus;
+          if Index + 1 <> ListBox1.Count then
+            Listbox1.ItemIndex := Index + 1
+          else
+            ListBox1.Invalidate;
+        end;
+      VK_F3: IncrementalSearch(Edit2.Text);
+      Ord('A'): FullSelect;
+      Ord('D'): DeleteFiles;
+      Ord('E'): OpenExplorer;
+      Ord('F'):
+        begin
+          ShowInputBox(' Search : ');
+          Key := 0;
+        end;
+      Ord('G'): GoToSpecifiedDirectory;
+      Ord('J'): ShowBookmarks;
+      Ord('N'): CreateNewFile;
+      Ord('P'): CopyPathToClipboard(CurrentLineItemPath);
+      Ord('R'): RenameFile;
+      Ord('S'): Sort;
+    end;
+  end;
+  if ssAlt in Shift then
+  begin
+    case Key of
+      Ord('P'): CopyPathToClipboard(ExcludeTrailingPathDelimiter(FCurrentDirectory));
+      VK_RETURN: MainForm.ShowFileProperty(CurrentLineItemPath);
+    end;
+  end;
+  if ssCtrl in Shift then
+  begin
+    case Key of
+      Ord('P'): CopyPathToClipboard(ExtractFileName(CurrentLineItemPath));
+    end;
+  end;
+  if ssShift in Shift then
+  begin
+    case Key of
+      VK_F10: ShowContextMenu;
+      Ord('A')..Ord('Z'): IncrementalSearch(Char(Key));
+    end;
+  end;
+  if Shift = [ssCtrl, ssShift] then
+  begin
+    case Key of
+      Ord('N'): CreateNewDir;
+      Ord('S'): ChangeShowHiddenFiles;
+    end;
+  end;
+end;
+
+procedure TListBoxFrame.ListBox1KeyPress(Sender: TObject; var Key: Char);
+begin
+  // Return キーを押すと ListBox の一番上のアイテムにフォーカスが移動してしまう
+  if Key = #13 then
+    Key := #0;
+end;
+
+procedure TListBoxFrame.ListBox1KeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Shift = [] then
+  begin
+    case Key of
+      VK_BACK: GoToParentDirectory;
+    end;
+  end;
+  if ssCtrl in Shift then
+  begin
+    case Key of
+      VK_BACK: ChangeDirectory(FExplorerHistory.LastHistory);
+    end;
+  end;
+end;
+
+procedure TListBoxFrame.LoadBookmarks;
+var
+  Item: TMenuItem;
+  fn: string;
+  no: string;
+  Path: string;
+  i: Integer;
+
+begin
+  FBookmarkList := TBookmarkList.Create;
+  fn := ExtractFilePath(Application.ExeName) + 'bookmarks.json';
+  if FileExists(fn) then
+    FBookmarkList.LoadFromFile(fn);
+  PopupMenu1.Items.Clear;
+  for i := 0 to FBookmarkList.Count - 1 do
+  begin
+    Path := FBookmarkList.Items[i].Path;
+    if (TDirectory.Exists(Path)) or (Pos('\\', Path) <> 0) then
+    begin
+      if i <= 9 then
+        no := i.ToString
+      else
+        no := Char(Ord('a') + (i - 10));
+      Item := TMenuitem.Create(PopupMenu1);
+      Item.Caption := '&' + no + ': ' + FBookmarkList.Items[i].Title;
+      Item.OnClick := PopupMenuClick;
+      // Item.OnDrawItem := MenuItemDrawItem;
+      // Item.OnMeasureItem := MenuItemMeasureItem;
+      PopupMenu1.Items.Add(Item);
+    end;
+  end;
+end;
+
+procedure TListBoxFrame.LoadSettings;
+var
+  AppSettings: TApplicationSettings;
+  FileName: string;
+
+begin
+  AppSettings := TApplicationSettings.Create;
+  try
+    FileName := ChangeFileExt(Application.ExeName, '.json');
+    if FileExists(FileName) then
+      AppSettings.LoadFromFile(FileName);
+    ListBox1.Font.Name  := AppSettings.ListViewFont.Name;
+    ListBox1.Font.Size  := AppSettings.ListViewFont.Size;
+    ListBox1.Font.Color := AppSettings.ListViewFont.Color;
+    ListBox1.Font.Pitch := fpFixed;
+  finally
+    AppSettings.Free;
+  end;
+end;
+
+// PopupMenu の OwnerDraw を True にしないと意味ない
+procedure TListBoxFrame.MenuItemDrawItem(Sender: TObject; ACanvas: TCanvas;
+  ARect: TRect; Selected: Boolean);
+var
+  s: string;
+
+begin
+  // PopupMenu のフォントサイズ変更用メソッド
+  if Selected then
+  begin
+    ACanvas.Brush.Color := clWebSkyBlue;
+    ACanvas.FillRect(ARect);
+  end else
+  begin
+    ACanvas.Brush.Color := clMenu;
+    ACanvas.FillRect(ARect);
+  end;
+  s := TMenuItem(Sender).Caption;
+  s := Copy(s, 2, Length(s));
+  ACanvas.Font.Size := 15;
+  ACanvas.Font.Name := 'Ricty Diminished';
+  Acanvas.TextRect(ARect, ARect.Left + 5, ARect.Top + 1, s);
+end;
+
+// PopupMenu の OwnerDraw を True にしないと意味ない
+procedure TListBoxFrame.MenuItemMeasureItem(Sender: TObject; ACanvas: TCanvas;
+  var Width, Height: Integer);
+begin
+  // PopupMenu のフォントサイズ変更用メソッド
+  ACanvas.Font.Size := 15;
+  ACanvas.Font.Name := 'Ricty Diminished';
+  Height := ACanvas.TextHeight(TMenuItem(Sender).Caption) + 5;
+  Width := ACanvas.TextWidth(TMenuItem(Sender).Caption) + 5;
+end;
+
+procedure TListBoxFrame.MoveFiles(const DestFolderPath: string);
+var
+  DestFileName: string;
+  FileName: string;
+  LockedFile: string;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+    Exit;
+  FFileMonitor.Pause;
+  MainForm.AddOperationHistory('移動を開始します');
+  FIsRepeatSameOperation := False;
+  for i := 0 to FSelectedItems.Count - 1 do
+  begin
+    FileName := FSelectedItems[i].FileName;
+    DestFileName := DestFolderPath + ExtractFileName(FileName);
+    if FSelectedItems[i].FileAttrib and faDirectory <> 0 then
+    begin
+      if not FolderOperationWithDialog(FSelectedItems[i].FileName, DestFileName, foFileMove) then
+        Exit;
+    end else
+    begin
+      if FileOperationWithDialog(FSelectedItems[i].FileName, DestFileName, foFileMove) then
+        Exit;
+    end;
+  end;
+  MainForm.AddOperationHistory('移動が終了しました');
+  FFileMonitor.Restart;
+end;
+
+procedure TListBoxFrame.NetworkPopupMenuClick(Sender: TObject);
+var
+  Path: string;
+
+begin
+  Path := TMenuItem(Sender).Caption;
+  Path := Copy(Path, Pos(' ', Path) + 1, Length(Path));
+  ChangeDirectory(IncludeTrailingPathDelimiter(FNetworkPath) + Path);
+end;
+
+procedure TListBoxFrame.OpenExplorer;
+begin
+  ShellExecute(Handle, 'explore', PChar(FCurrentDirectory), '',
+    PChar(ExtractFilePath(Application.ExeName)), SW_SHOWNORMAL);
+end;
+
+procedure TListBoxFrame.OpenFile(const FileName: string);
+var
+  Path: string;
+
+begin
+  if LowerCase(ExtractFileExt(FileName)) = '.lnk' then
+  begin
+    Path := ExtractLinkPath(FileName);
+    if TDirectory.Exists(Path) then
+      ChangeDirectory(Path)
+    else
+      ShellExecute(0, 'open', PChar(FileName), '', nil, SW_SHOWNORMAL);
+  end else
+    ShellExecute(0, 'open', PChar(FileName), '', nil, SW_SHOWNORMAL);
+end;
+
+procedure TListBoxFrame.PopupMenuClick(Sender: TObject);
+var
+  Index: Integer;
+  Path: string;
+  Command: string;
+
+begin
+  Command := TMenuItem(Sender).Caption;
+  Command := Copy(Command, Pos(' ', Command) + 1, Length(Command));
+  Index := FBookmarkList.IndexOf(Command);
+  if Index = - 1 then
+    Exit;
+  Path := FBookmarkList[Index].Path;
+  if Pos('\\', Path) <> 0 then
+  begin
+    FNetworkPath := Path;
+    ShowNetworkPopup(Path);
+  end else
+  if TDirectory.Exists(Path) then
+    ChangeDirectory(Path);
+end;
+
+procedure TListBoxFrame.ReloadListBox;
+begin
+  ChangeDirectory(FCurrentDirectory);
+  Panel4.Caption := Format('%d 個の項目', [FFileList.Count]);
+end;
+
+procedure TListBoxFrame.RenameFile;
+var
+  SrcFile: string;
+  DirName: string;
+  NewName, OldName: string;
+  Index: Integer;
+  p: TPoint;
+
+begin
+  FFileMonitor.Pause;
+  SrcFile := FFileList[ListBox1.ItemIndex].FileName;
+  DirName := ExtractFilePath(SrcFile);
+  OldName := ExtractFileName(SrcFile);
+  InputForm.Init('ファイルのリネーム', '新しい名前', OldName);
+  p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+  InputForm.Left := p.X;
+  InputForm.Top := p.Y;
+  InputForm.ShowModal;
+  if InputForm.IsCancel then
+  begin
+    MainForm.AddOperationHistory(Format('リネームをキャンセルしました [ %s ]', [SrcFile]));
+    Exit;
+  end;
+  NewName := InputForm.InputText;
+  if DoFileOperation(SrcFile, DirName + NewName, foFileRename) then
+  begin
+    MainForm.AddOperationHistory(Format('リネームしました [ %s ]', [SrcFile]));
+    ReloadListBox;
+    Index := FileIndexInFileList(DirName + NewName);
+    ListBox1.ItemIndex := Index;
+  end else
+    MainForm.AddOperationHistory(Format('リネームに失敗しました [ %s ]', [SrcFile]));
+  FFileMonitor.Restart;
+end;
+
+procedure TListBoxFrame.SetFilesListToItems(Path: string);
+var
+  Rec: TSearchRec;
+  Item: TFileListItem;
+  Attrib: Integer;
+  SHFileInfo: TSHFileInfo;
+  Icon: TIcon;
+
+begin
+  ClearFileList;
+  FSelectedItems.Clear;
+  FListItemsSelected := nil;
+  if FindFirst(Path + '*.*', faAnyFile, Rec) = 0 then
+  begin
+    repeat
+      if (Rec.Name <> '..') and (Rec.Name <> '.') then
+      begin
+        if (Rec.Attr and faHidden <> 0) and not FIsShowHiddenFiles then
+          Continue;
+        Item := TFileListItem.Create;
+        SHGetFileInfo(PChar(Path + Rec.Name), 0, SHFileInfo, SizeOf(SHFileInfo),
+          SHGFI_SMALLICON or SHGFI_ICON or SHGFI_SYSICONINDEX);
+        Icon := TIcon.Create;
+        Icon.Handle := SHFileInfo.hIcon;
+        Item.Icon := Icon;
+        Attrib := Rec.Attr;
+        Item.FileName := Path + Rec.Name;
+        Item.FileExt := ExtractFileExt(Rec.Name);
+        Item.FileAttrib := Attrib;
+        if BOOL(Attrib and faDirectory) then
+          Item.FileSize := 0
+        else
+          Item.FileSize := Rec.FindData.nFileSizeLow;
+        Item.FileDate := FileTimeToDateTime(Rec.FindData.ftLastWriteTime);
+        FFileList.Add(Item);
+        SetLength(FListItemsSelected, Length(FListItemsSelected) + 1);
+        FListItemsSelected[High(FListItemsSelected)] := False;
+      end;
+    until FindNext(Rec) <> 0;
+  end;
+  FindClose(Rec);
+end;
+
+procedure TListBoxFrame.ShowBookmarks;
+var
+  p: TPoint;
+
+begin
+  p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+  PopupMenu1.Popup(p.X, p.Y);
+end;
+
+procedure TListBoxFrame.ShowContextMenu;
+var
+  p: TPoint;
+  fn: string;
+  ns: TNameSpace;
+
+begin
+  if ListBox1.ItemIndex = - 1 then
+    Exit;
+  p := Point(ListBox1.Left, ListBox1.Top);
+  p.Y := p.Y + ListBox1.ItemHeight * (ListBox1.ItemIndex - ListBox1.TopIndex);
+  p := ClientToScreen(p);
+  fn := FFileList[ListBox1.ItemIndex].FileName;
+  ns := TNamespace.CreateFromFileName(fn);
+  try
+    ns.ShowContextMenu(ListBox1, nil, nil, nil, @p);
+  finally
+    ns.Free;
+  end;
+end;
+
+procedure TListBoxFrame.ShowInputBox(const CaptionStr: string);
+begin
+  Label1.Caption := CaptionStr;
+  Panel3.Visible := True;
+  Edit2.Text := '';
+  Edit2.SetFocus;
+end;
+
+procedure TListBoxFrame.ShowNetworkPopup(const Path: string);
+var
+  Buffer: Pointer;
+  EntriesRead, TotalEntries, ResumeHandle: DWORD;
+  ShareInfo: PShareInfo;
+  i: Integer;
+  ResultCode: DWORD;
+  MenuItem: TMenuItem;
+  p: TPoint;
+  no: string;
+
+begin
+  EntriesRead := 0;
+  TotalEntries := 0;
+  ResumeHandle := 0;
+  ResultCode := NetShareEnum(PChar(Path), SHARE_INFO_LEVEL_1, Buffer,
+    MAX_PREFERRED_LENGTH, EntriesRead, TotalEntries, ResumeHandle);
+  if ResultCode = NERR_Success then
+  begin
+    PopupMenu2.Items.Clear;
+    for i := 0 to EntriesRead - 1 do
+    begin
+      ShareInfo := PShareInfo(Integer(Buffer) + i * SIzeOf(TShareInfo));
+      if ShareInfo^.shi1_type = 0 then
+      begin
+        if i <= 9 then
+          no := i.ToString
+        else
+          no := Char(Ord('a') + (i - 10));
+        MenuItem := TMenuItem.Create(PopupMenu2);
+        MenuItem.Caption := '&' + no + ': ' + ShareInfo^.shi1_netname;
+        MenuItem.OnClick := NetworkPopupMenuClick;
+        // MenuItem.OnDrawItem := MenuItemDrawItem;
+        // MenuItem.OnMeasureItem := MenuItemMeasureItem;
+        PopupMenu2.Items.Add(MenuItem);
+      end;
+    end;
+    p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+    PopupMenu2.Popup(p.X, p.Y);
+  end;
+end;
+
+procedure TListBoxFrame.ShowSelectedFileStatus;
+var
+  TotalFileSize: Int64;
+  IsContainsFolder: Boolean;
+  CaptionStr: string;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+  begin
+    Panel2.Caption := '';
+    Exit;
+  end;
+  TotalFileSize := 0;
+  IsContainsFolder := False;
+  for i := 0 to FSelectedItems.Count - 1 do
+  begin
+    if FSelectedItems[i].FileAttrib and faDirectory <> 0 then
+      IsContainsFolder := True;
+    TotalFileSize := TotalFileSize + FSelectedItems[i].FileSize;
+  end;
+  CaptionStr := Format('%d 個の項目を選択', [FSelectedItems.Count]);
+  if not IsContainsFolder then
+    CaptionStr := CaptionStr + FormatFileSize(TotalFileSize);
+  Panel2.Caption := CaptionStr;
+end;
+
+procedure TListBoxFrame.Sort;
+var
+  p: TPoint;
+
+begin
+  if FFileList.Count = - 1 then
+    Exit;
+  p := ClientToScreen(Point(ListBox1.Left, ListBox1.Top));
+  SortSelectForm.Init(SortSettings);
+  SortSelectForm.Left := p.X;
+  SortSelectForm.Top := p.Y;
+  SortSelectForm.ShowModal;
+  if not SortSelectForm.IsCancel then
+  begin
+    SortSettings := SortSelectForm.SortSettings;
+    with SortSettings do
+    begin
+      SortColumnIndex := SortIndex;
+      SortColumns[SortColumnIndex] := SortOrder;
+      FFileList.Sort(TComparer<TDataListItem>.Construct(SortFunction));
+    end;
+    ListBox1.Invalidate;
+  end;
+end;
+
+end.

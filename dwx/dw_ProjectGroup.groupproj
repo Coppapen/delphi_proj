@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{C496FE9F-D3E2-4A0A-9D28-74273CCA0C45}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="dw.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="dw_config.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="dw">
+        <MSBuild Projects="dw.dproj"/>
+    </Target>
+    <Target Name="dw:Clean">
+        <MSBuild Projects="dw.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="dw:Make">
+        <MSBuild Projects="dw.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="dw_config">
+        <MSBuild Projects="dw_config.dproj"/>
+    </Target>
+    <Target Name="dw_config:Clean">
+        <MSBuild Projects="dw_config.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="dw_config:Make">
+        <MSBuild Projects="dw_config.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="dw;dw_config"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="dw:Clean;dw_config:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="dw:Make;dw_config:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

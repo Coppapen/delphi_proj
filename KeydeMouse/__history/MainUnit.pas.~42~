@@ -1,0 +1,193 @@
+unit MainUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Mask, Vcl.ExtCtrls, System.JSON.Serializers,
+  System.JSON, System.JSON.Types, Vcl.Menus;
+
+type
+  TSettings = record
+    LeftClick  : Char;
+    RightClick : Char;
+    MoveUp     : Char;
+    MoveDown   : Char;
+    MoveLeft   : Char;
+    MoveRight  : Char;
+    MoveRange  : Integer;
+  end;
+
+  TMainForm = class(TForm)
+    Button1: TButton;
+    Button2: TButton;
+    Label1: TLabel;
+    LabeledEdit1: TLabeledEdit;
+    LabeledEdit2: TLabeledEdit;
+    LabeledEdit3: TLabeledEdit;
+    LabeledEdit4: TLabeledEdit;
+    LabeledEdit5: TLabeledEdit;
+    LabeledEdit6: TLabeledEdit;
+    TrayIcon1: TTrayIcon;
+    PopupMenu1: TPopupMenu;
+    N1: TMenuItem;
+    LabeledEdit7: TLabeledEdit;
+    procedure Button1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure LabeledEdit1KeyPress(Sender: TObject; var Key: Char);
+    procedure TrayIcon1DblClick(Sender: TObject);
+    procedure N1Click(Sender: TObject);
+  private
+    { Private 宣言 }
+    FSettings: TSettings;
+    procedure LoadSettings(const FileName: string);
+    procedure SaveSettings(const FileName: string);
+  public
+    { Public 宣言 }
+  protected
+    procedure WMApp100(var Message: TMessage); message WM_APP+100;
+    procedure WMApp110(var Message: TMessage); message WM_APP+110;
+  end;
+
+var
+  MainForm: TMainForm;
+
+function StartMouseKeyHook(Wnd: HWND): HHOOK; stdcall; external 'PLMOUSEKEYHOOK.DLL';
+procedure StopMouseKeyHook; stdcall; external 'PLMOUSEKEYHOOK.DLL';
+
+implementation
+
+{$R *.dfm}
+
+{ TForm1 }
+
+procedure TMainForm.Button1Click(Sender: TObject);
+begin
+  MainForm.Hide;
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+begin
+  StartMouseKeyHook(Handle);
+  LoadSettings(ChangeFileExt(Application.ExeName, '.ini'));
+end;
+
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  StopMouseKeyHook;
+  SaveSettings(ChangeFileExt(Application.ExeName, '.ini'));
+end;
+
+procedure TMainForm.LabeledEdit1KeyPress(Sender: TObject; var Key: Char);
+begin
+  TLabeledEdit(Sender).Text := '';
+  if CharInSet(Key, ['a'..'z']) then
+  begin
+    TLabeledEdit(Sender).Text := UpperCase(Char(Key));
+  end;
+  Key := #0;
+end;
+
+procedure TMainForm.LoadSettings(const FileName: string);
+var
+  Js: TJsonSerializer;
+  List: TStringList;
+
+begin
+  if not FileExists(FileName) then
+  begin
+    FSettings.LeftClick  := 'U';
+    FSettings.RightClick := 'H';
+    FSettings.MoveUp     := 'I';
+    FSettings.MoveDown   := 'K';
+    FSettings.MoveLeft   := 'J';
+    FSettings.MoveRight  := 'L';
+    FSettings.MoveRange  := 10;
+    Exit;
+  end;
+  Js := TJsonSerializer.Create;
+  List := TStringList.Create;
+  try
+    List.LoadFromFile(FileName);
+    FSettings := Js.Deserialize<TSettings>(List.Text);
+  finally
+    Js.Free;
+    List.Free;
+  end;
+end;
+
+procedure TMainForm.N1Click(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TMainForm.SaveSettings(const FileName: string);
+var
+  Js: TJsonSerializer;
+  List: TStringList;
+
+begin
+  Js := TJsonSerializer.Create;
+  List := TStringList.Create;
+  try
+    Js.Formatting := TJsonFormatting.Indented;
+    var Json := Js.Serialize<TSettings>(FSettings);
+    List.Text := Json;
+    List.SaveToFile(FileName);
+  finally
+    Js.Free;
+    List.Free;
+  end;
+end;
+
+procedure TMainForm.TrayIcon1DblClick(Sender: TObject);
+begin
+  LabeledEdit1.Text := FSettings.LeftClick;
+  LabeledEdit2.Text := FSettings.RightClick;
+  LabeledEdit3.Text := FSettings.MoveUp;
+  LabeledEdit4.Text := FSettings.MoveDown;
+  LabeledEdit5.Text := FSettings.MoveLeft;
+  LabeledEdit6.Text := FSettings.MoveRight;
+  LabeledEdit7.Text := FSettings.MoveRange.ToString;
+  MainForm.Show;
+end;
+
+// DLL からグローバルフックしたマウス情報を受け取る
+procedure TMainForm.WMApp100(var Message: TMessage);
+begin
+
+end;
+
+// DLL からグローバルフックしたキーボード情報を受け取る
+procedure TMainForm.WMApp110(var Message: TMessage);
+var
+  LIsDown: Boolean;
+  LKey: WORD;
+  IsShift: Boolean;
+  IsCtrl : Boolean;
+  MousePos: TPoint;
+
+begin
+  LIsDown := (Message.LParam and (1 shl 31)) = 0;
+  if LIsDown then
+  begin
+    IsShift := (GetKeyState(VK_SHIFT)   and (1 shl 15)) <> 0;
+    IsCtrl  := (GetKeyState(VK_CONTROL) and (1 shl 15)) <> 0;
+    if IsShift and IsCtrl then
+    begin
+      LKey := Message.WParam;
+      GetCursorPos(MousePos);
+      if Char(LKey) = FSettings.LeftClick  then
+      if Char(LKey) = FSettings.RightClick then
+      if Char(LKey) = FSettings.MoveUp     then
+        Dec(MousePos.Y, FSettings.MoveRange);
+      if Char(LKey) = FSettings.MoveDown   then
+        Inc(MousePos.Y, FSettings.MoveRange);
+      if Char(LKey) = FSettings.MoveLeft   then
+      if Char(LKey) = FSettings.MoveRight  then
+    end;
+  end;
+end;
+
+end.

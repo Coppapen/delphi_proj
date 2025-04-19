@@ -1,0 +1,188 @@
+unit OverwriteConfirm;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, ExplorerUtils, FileTransfer,
+  Vcl.Mask;
+
+type
+  TConfirmForm = class(TForm)
+    Label1: TLabel;
+    Panel1: TPanel;
+    //
+    EdtRename: TLabeledEdit;
+    LblConfirm1: TLabel;
+    LblConfirm2: TLabel;
+    PnlConfirm1: TPanel;
+    PnlConfirm2: TPanel;
+    PnlConfirm3: TPanel;
+    PnlFileInfo: TPanel;
+    LblFileInfo1: TLabel;
+    LblFileInfo2: TLabel;
+    LblFileInfo3: TLabel;
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure EdtRenameKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormCreate(Sender: TObject);
+  private
+    { Private 宣言 }
+    FResult: TOverwritePromptResult;
+    FOriginalFileName: string;
+    FPanelIndex: Integer;
+    function KeyToIndex(const Key: Char): Integer;
+    procedure SetConfirmResult;
+    procedure SetPanelForcus(const Index: Integer);
+  public
+    { Public 宣言 }
+    procedure Init(const SrcFile, DestFile: string);
+    property Result: TOverwritePromptResult read FResult;
+  end;
+
+var
+  ConfirmForm: TConfirmForm;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  MainUnit;
+
+procedure TConfirmForm.EdtRenameKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Dir: string;
+
+begin
+  if Key = VK_RETURN then
+  begin
+    Dir := ExtractFilePath(FOriginalFileName);
+    if FileExists(Dir + EdtRename.Text) then
+      MainForm.AddOperationHistory('既に同じ名前のファイルが存在します')
+    else
+    begin
+      SetConfirmResult;
+      ModalResult := mrOK;
+    end;
+  end;
+end;
+
+procedure TConfirmForm.FormCreate(Sender: TObject);
+begin
+  SetPanelForcus(1);
+end;
+
+procedure TConfirmForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Shift = [] then
+  begin
+    case Key of
+      VK_DOWN: Inc(FPanelIndex);
+      VK_UP:   Dec(FPanelIndex);
+      VK_RETURN:
+        begin
+          SetConfirmResult;
+          ModalResult := mrOK;
+        end;
+      VK_ESCAPE:
+        begin
+          FResult.Action := oaCancel;
+          ModalResult := mrCancel;
+        end;
+    end;
+    if (Key = VK_DOWN) or (Key = VK_UP) then
+    begin
+      if FPanelIndex < 1 then
+        FPanelIndex := 1
+      else
+      if FPanelIndex > 3 then
+        FPanelIndex := 3;
+      SetPanelForcus(FPanelIndex);
+    end;
+    case Key of
+      Ord('R'), Ord('S'), Ord('C'), Ord('F'):
+      begin
+        if FPanelIndex <> 3 then
+          SetPanelForcus(KeyToIndex(Char(Key)));
+      end;
+    end;
+  end;
+  if ssShift in Shift then
+  begin
+    case Key of
+      VK_RETURN:
+        begin
+          if FPanelIndex <> 3 then
+          begin
+            SetConfirmResult;
+            ModalResult := mrOK;
+          end;
+        end;
+    end;
+  end;
+end;
+
+procedure TConfirmForm.Init(const SrcFile, DestFile: string);
+var
+  Info1, Info2: TFileInfo;
+
+begin
+  FOriginalFileName := DestFile;
+  Info1 := GetFileProperty(SrcFile);
+  Info2 := GetFileProperty(DestFile);
+  LblFileInfo1.Caption := 'コピー元 : ' + FormatDateTime('[ yy/mm/dd hh:nn:sss ]', Info1.LastWriteTime) +
+    FormatFloat('#,##0', Info1.FileSize) + ' Byte';
+  LblFileInfo2.Caption := 'コピー先 : ' + FormatDateTime('[ yy/mm/dd hh:nn:sss ]', Info2.LastWriteTime) +
+    FormatFloat('#,##0', Info2.FileSize) + ' Byte';
+end;
+
+function TConfirmForm.KeyToIndex(const Key: Char): Integer;
+const
+  Keys = 'RSCF';
+
+begin
+  Result := Pos(Key, Keys);
+end;
+
+procedure TConfirmForm.SetConfirmResult;
+var
+  Dir: string;
+
+begin
+  case FPanelIndex of
+    1: FResult.Action := oaYes;
+    2: FResult.Action := oaNo;
+    3:
+      begin
+        Dir := ExtractFilePath(FOriginalFileName);
+        FResult.Action := oaRename;
+        FResult.NewFileName := Dir + EdtRename.Text;
+      end;
+  end;
+end;
+
+procedure TConfirmForm.SetPanelForcus(const Index: Integer);
+var
+  i: Integer;
+
+begin
+  for i := 1 to 3 do
+  begin
+    TPanel(FindComponent('PnlConfirm' + i.ToString)).BevelInner := bvNone;
+    TPanel(FindComponent('PnlConfirm' + i.ToString)).BevelOuter := bvNone;
+  end;
+  if Index = 3 then
+  begin
+    EdtRename.Enabled := True;
+    EdtRename.SetFocus;
+    EdtRename.SelStart := Length(EdtRename.Text);
+  end else
+    EdtRename.Enabled := False;
+  TPanel(FindComponent('PnlConfirm' + Index.ToString)).BevelInner := bvLowered;
+  TPanel(FindComponent('PnlConfirm' + Index.ToString)).BevelOuter := bvRaised;
+  FPanelIndex := Index;
+end;
+
+end.

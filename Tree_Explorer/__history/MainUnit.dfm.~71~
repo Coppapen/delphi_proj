@@ -1,0 +1,36 @@
+object MainForm: TMainForm
+  Left = 0
+  Top = 0
+  Caption = 'MainForm'
+  ClientHeight = 447
+  ClientWidth = 630
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  TextHeight = 15
+  object TrayIcon1: TTrayIcon
+    PopupMenu = PopupMenu1
+    Visible = True
+    Left = 304
+    Top = 224
+  end
+  object PopupMenu1: TPopupMenu
+    AutoHotkeys = maManual
+    Images = ImageList1
+    OnPopup = PopupMenu1Popup
+    Left = 448
+    Top = 224
+  end
+  object ImageList1: TImageList
+    ColorDepth = cd32Bit
+    Height = 24
+    Width = 24
+    Left = 400
+    Top = 120
+  end
+end

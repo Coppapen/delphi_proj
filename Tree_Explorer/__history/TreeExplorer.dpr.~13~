@@ -1,0 +1,34 @@
+program TreeExplorer;
+
+uses
+  Vcl.Forms,
+  Vcl.Styles,
+  Vcl.Themes,
+  Winapi.Messages,
+  Winapi.Windows,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  SubUnit in 'SubUnit.pas' {SubForm};
+
+{$R *.res}
+
+var
+  lh_Message: HWND;
+
+begin
+  if (CreateMutex(nil, False, 'Dsapbi203dap') <> 0)
+    and (GetLastError = ERROR_ALREADY_EXISTS) then
+  begin
+    lh_Message := FindWindow('TMainForm', nil);
+    if (ParamCount > 0) and (lh_Message <> 0) then
+      SendMessage(lh_Message, WM_SETTEXT, 0, LPARAM(CmdLine))
+    else
+      Application.MessageBox('ëΩèdãNìÆÇ≈Ç´Ç‹ÇπÇÒ', 'èÓïÒ');
+    Exit;
+  end;
+  Application.Initialize;
+  Application.MainFormOnTaskbar := False;
+  Application.ShowMainForm := False;
+  TStyleManager.TrySetStyle('Carbon');
+  Application.CreateForm(TMainForm, MainForm);
+  Application.Run;
+end.

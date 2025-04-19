@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2023/08/26 13:24:58.000.818,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 19:50:15.000.742,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 19:50:52.000.299,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 20:14:58.000.607,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 20:35:08.000.972,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/10/19 11:46:21.634,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/10/19 11:51:25.694,C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\Main.pas=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/10/19 11:51:25.694,C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\Main.dfm=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>2024/10/19 11:51:36.153,C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\MainUnit.pas=C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\Main.pas</Transaction>
+    <Transaction>2024/10/19 11:51:36.153,C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\MainUnit.dfm=C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\Main.dfm</Transaction>
+    <Transaction>2024/10/19 11:52:24.818,C:\Users\coppepan\Documents\Delphi\proj\KeydeMouse\KeydeMouse.dproj=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+  </Transactions>
+</BorlandProject>

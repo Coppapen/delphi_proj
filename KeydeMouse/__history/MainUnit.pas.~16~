@@ -1,0 +1,102 @@
+unit MainUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Mask, Vcl.ExtCtrls;
+
+type
+  TMainForm = class(TForm)
+    LabeledEdit3: TLabeledEdit;
+    LabeledEdit5: TLabeledEdit;
+    LabeledEdit4: TLabeledEdit;
+    LabeledEdit6: TLabeledEdit;
+    Button1: TButton;
+    Button2: TButton;
+    LabeledEdit1: TLabeledEdit;
+    LabeledEdit2: TLabeledEdit;
+    CheckBox1: TCheckBox;
+    Label1: TLabel;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure LabeledEdit1KeyPress(Sender: TObject; var Key: Char);
+    procedure Button1Click(Sender: TObject);
+  private
+    { Private 宣言 }
+  public
+    { Public 宣言 }
+  protected
+    procedure WMApp100(var Message: TMessage); message WM_APP+100;
+    procedure WMApp110(var Message: TMessage); message WM_APP+110;
+  end;
+
+var
+  MainForm: TMainForm;
+
+function StartMouseKeyHook(Wnd: HWND): HHOOK; stdcall; external 'PLMOUSEKEYHOOK.DLL';
+procedure StopMouseKeyHook; stdcall; external 'PLMOUSEKEYHOOK.DLL';
+
+implementation
+
+{$R *.dfm}
+
+{ TForm1 }
+
+procedure TMainForm.Button1Click(Sender: TObject);
+begin
+  MainForm.Hide;
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+begin
+  StartMouseKeyHook(Handle);
+end;
+
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  StopMouseKeyHook;
+end;
+
+procedure TMainForm.FormShow(Sender: TObject);
+var
+  p: TPoint;
+
+begin
+  GetCursorPos(p);
+  MainForm.Left := p.X;
+  MainForm.Top  := p.Y;
+end;
+
+procedure TMainForm.LabeledEdit1KeyPress(Sender: TObject; var Key: Char);
+begin
+  TLabeledEdit(Sender).Text := '';
+  if CharInSet(Key, ['a'..'z']) then
+  begin
+    TLabeledEdit(Sender).Text := UpperCase(Char(Key));
+  end;
+  Key := #0;
+end;
+
+// DLL からグローバルフックしたマウス情報を受け取る
+procedure TMainForm.WMApp100(var Message: TMessage);
+begin
+
+end;
+
+// DLL からグローバルフックしたキーボード情報を受け取る
+procedure TMainForm.WMApp110(var Message: TMessage);
+var
+  LIsDown: Boolean;
+  LKey: WORD;
+
+begin
+  LIsDown := (Message.LParam and (1 shl 31)) = 0;
+  if LIsDown then
+  begin
+
+  end;
+end;
+
+end.

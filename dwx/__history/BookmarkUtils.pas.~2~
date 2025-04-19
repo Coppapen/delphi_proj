@@ -1,0 +1,142 @@
+unit BookmarkUtils;
+
+interface
+
+uses
+  System.JSON, System.Classes, System.SysUtils,
+  System.Generics.Collections;
+
+type
+  TBookmarkItem = class
+  public
+    Name: string;
+    Path: string;
+    constructor Create(const AName, APath: string);
+    function ToJSON: TJSONObject;
+    class function FromJSON(AJSON: TJSONObject): TBookmarkItem;
+  end;
+
+  TBookmarkCategory = class
+  public
+    Category: string;
+    Items: TObjectList<TBookmarkItem>;
+    constructor Create(const ACategory: string);
+    destructor Destroy; override;
+    function ToJSON: TJSONObject;
+    class function FromJSON(AJSON: TJSONObject): TBookmarkCategory;
+  end;
+
+  TBookmarkCollection = class
+  public
+    Categories: TObjectList<TBookmarkCategory>;
+    constructor Create;
+    destructor Destroy; override;
+    function ToJSON: TJSONObject;
+    procedure FromJSON(AJSON: TJSONObject);
+  end;
+
+implementation
+
+{ TBookmarkItem }
+
+constructor TBookmarkItem.Create(const AName, APath: string);
+begin
+  Name := AName;
+  Path := APath;
+end;
+
+class function TBookmarkItem.FromJSON(AJSON: TJSONObject): TBookmarkItem;
+begin
+  Result := TBookmarkItem.Create(
+    AJSON.GetValue<string>('name'),
+    AJSON.GetValue<string>('path')
+  );
+end;
+
+function TBookmarkItem.ToJSON: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('name', Name);
+  Result.AddPair('path', Path);
+end;
+
+{ TBookmarkCategory }
+
+constructor TBookmarkCategory.Create(const ACategory: string);
+begin
+  Category := ACategory;
+  Items := TObjectList<TBookmarkItem>.Create(True);
+end;
+
+destructor TBookmarkCategory.Destroy;
+begin
+  Items.Free;
+  inherited;
+end;
+
+class function TBookmarkCategory.FromJSON(
+  AJSON: TJSONObject): TBookmarkCategory;
+var
+  ItemsArray: TJSONArray;
+  i: Integer;
+
+begin
+  Result := TBookmarkCategory.Create(AJSON.GetValue<string>('category'));
+  ItemsArray := AJSON.GetValue<TJSONArray>('items');
+  for i := 0 to ItemsArray.Count - 1 do
+    Result.Items.Add(TBookmarkItem.FromJSON(ItemsArray.Items[i] as TJSONObject));
+end;
+
+function TBookmarkCategory.ToJSON: TJSONObject;
+var
+  ItemsArray: TJSONArray;
+  Item: TBookmarkItem;
+
+begin
+  Result := TJSONObject.Create;
+  Result.AddPair('category', Category);
+  ItemsArray := TJSONArray.Create;
+  for Item in Items do
+    ItemsArray.AddElement(Item.ToJSON);
+  Result.AddPair('items', ItemsArray);
+end;
+
+{ TBookmarkCollection }
+
+constructor TBookmarkCollection.Create;
+begin
+  Categories := TObjectList<TBookmarkCategory>.Create(True);
+end;
+
+destructor TBookmarkCollection.Destroy;
+begin
+  Categories.Free;
+  inherited;
+end;
+
+procedure TBookmarkCollection.FromJSON(AJSON: TJSONObject);
+var
+  CategoriesArray: TJSONArray;
+  i: Integer;
+
+begin
+  Categories.Clear;
+  CategoriesArray := AJSON.GetValue<TJSONArray>('bookmarks');
+  for i := 0 to CategoriesArray.Count - 1 do
+    Categories.Add(TBookmarkCategory.FromJSON(CategoriesArray.Items[i] as TJSONObject));
+end;
+
+function TBookmarkCollection.ToJSON: TJSONObject;
+var
+  CategoriesArray: TJSONArray;
+  Category: TBookmarkCategory;
+
+begin
+  Result := TJSONObject.Create;
+  CategoriesArray := TJSONArray.Create;
+  for Category in Categories do
+    CategoriesArray.AddElement(Category.ToJSON);
+  Result.AddPair('bookmarks', CategoriesArray);
+end;
+
+end.

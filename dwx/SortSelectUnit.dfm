@@ -1,0 +1,231 @@
+object SortSelectForm: TSortSelectForm
+  Left = 0
+  Top = 0
+  BorderIcons = [biMinimize, biMaximize]
+  BorderStyle = bsSizeToolWin
+  Caption = #12477#12540#12488
+  ClientHeight = 261
+  ClientWidth = 194
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  KeyPreview = True
+  OnKeyDown = FormKeyDown
+  OnKeyPress = FormKeyPress
+  TextHeight = 15
+  object Panel1: TPanel
+    AlignWithMargins = True
+    Left = 3
+    Top = 3
+    Width = 188
+    Height = 30
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    Font.Charset = SHIFTJIS_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = #65325#65331' '#12468#12471#12483#12463
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 0
+    object Label1: TLabel
+      Left = 23
+      Top = 8
+      Width = 112
+      Height = 15
+      Caption = 'F : '#12501#12449#12452#12523#21517
+      Font.Charset = SHIFTJIS_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+    end
+  end
+  object Panel2: TPanel
+    AlignWithMargins = True
+    Left = 3
+    Top = 39
+    Width = 188
+    Height = 30
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    Font.Charset = SHIFTJIS_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = #65325#65331' '#12468#12471#12483#12463
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 1
+    object Label2: TLabel
+      Left = 23
+      Top = 8
+      Width = 80
+      Height = 15
+      Caption = 'E : '#25313#24373#23376
+      Font.Charset = SHIFTJIS_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+    end
+  end
+  object Panel3: TPanel
+    AlignWithMargins = True
+    Left = 3
+    Top = 75
+    Width = 188
+    Height = 30
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    Font.Charset = SHIFTJIS_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = #65325#65331' '#12468#12471#12483#12463
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 2
+    object Label3: TLabel
+      Left = 23
+      Top = 8
+      Width = 80
+      Height = 15
+      Caption = 'S : '#12469#12452#12474
+      Font.Charset = SHIFTJIS_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+    end
+  end
+  object Panel4: TPanel
+    AlignWithMargins = True
+    Left = 3
+    Top = 111
+    Width = 188
+    Height = 30
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    Font.Charset = SHIFTJIS_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = #65325#65331' '#12468#12471#12483#12463
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 3
+    object Label4: TLabel
+      Left = 23
+      Top = 8
+      Width = 96
+      Height = 15
+      Caption = 'T : '#26356#26032#26085#26178
+      Font.Charset = SHIFTJIS_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+    end
+  end
+  object Panel_Order: TPanel
+    Left = 0
+    Top = 144
+    Width = 194
+    Height = 40
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvLowered
+    TabOrder = 4
+    object Panel_Descend: TPanel
+      Left = 111
+      Top = 10
+      Width = 60
+      Height = 20
+      BevelOuter = bvNone
+      Caption = #38477#38918
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+    end
+    object Panel_Ascend: TPanel
+      Left = 23
+      Top = 10
+      Width = 60
+      Height = 20
+      BevelOuter = bvNone
+      Caption = #26119#38918
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 1
+    end
+  end
+  object Panel5: TPanel
+    AlignWithMargins = True
+    Left = 3
+    Top = 187
+    Width = 188
+    Height = 30
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    Enabled = False
+    TabOrder = 5
+    object CheckBox1: TCheckBox
+      Left = 5
+      Top = 7
+      Width = 177
+      Height = 17
+      Caption = 'G : '#12501#12457#12523#12480#12434#19978#12395#12414#12392#12417#12427
+      Font.Charset = SHIFTJIS_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+    end
+  end
+  object Panel6: TPanel
+    AlignWithMargins = True
+    Left = 3
+    Top = 223
+    Width = 188
+    Height = 30
+    Align = alTop
+    Alignment = taLeftJustify
+    BevelOuter = bvNone
+    Enabled = False
+    TabOrder = 6
+    object CheckBox2: TCheckBox
+      Left = 5
+      Top = 6
+      Width = 177
+      Height = 17
+      Caption = 'C : '#22823#25991#23383#23567#25991#23383#12434#21306#21029#12394#12375
+      Font.Charset = SHIFTJIS_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -12
+      Font.Name = #65325#65331' '#12468#12471#12483#12463
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+    end
+  end
+end

@@ -1,0 +1,113 @@
+object MainForm: TMainForm
+  Left = 0
+  Top = 0
+  Caption = 'MainForm'
+  ClientHeight = 423
+  ClientWidth = 464
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  OnCreate = FormCreate
+  TextHeight = 15
+  object PageControl1: TPageControl
+    Left = 0
+    Top = 0
+    Width = 464
+    Height = 423
+    ActivePage = TabSheet1
+    Align = alClient
+    TabOrder = 0
+    object TabSheet1: TTabSheet
+      Caption = 'Bookmarks'
+      object Panel1: TPanel
+        Left = 0
+        Top = 243
+        Width = 456
+        Height = 150
+        Align = alBottom
+        TabOrder = 0
+        ExplicitTop = 249
+        object EditName: TLabeledEdit
+          Left = 72
+          Top = 46
+          Width = 370
+          Height = 23
+          EditLabel.Width = 41
+          EditLabel.Height = 23
+          EditLabel.Caption = 'Name : '
+          LabelPosition = lpLeft
+          TabOrder = 1
+          Text = ''
+        end
+        object EditPath: TLabeledEdit
+          Left = 72
+          Top = 75
+          Width = 370
+          Height = 23
+          EditLabel.Width = 33
+          EditLabel.Height = 23
+          EditLabel.Caption = 'Path : '
+          LabelPosition = lpLeft
+          TabOrder = 2
+          Text = ''
+        end
+        object BtnSave: TButton
+          Left = 207
+          Top = 108
+          Width = 100
+          Height = 25
+          Caption = 'Save'
+          TabOrder = 4
+          OnClick = BtnSaveClick
+        end
+        object EditCategory: TLabeledEdit
+          Left = 72
+          Top = 17
+          Width = 370
+          Height = 23
+          EditLabel.Width = 57
+          EditLabel.Height = 23
+          EditLabel.Caption = 'Category : '
+          LabelPosition = lpLeft
+          TabOrder = 0
+          Text = ''
+        end
+        object BtnAdd: TButton
+          Left = 342
+          Top = 108
+          Width = 100
+          Height = 25
+          Caption = 'Add'
+          TabOrder = 5
+          OnClick = BtnAddClick
+        end
+        object BtnDelete: TButton
+          Left = 72
+          Top = 108
+          Width = 100
+          Height = 25
+          Caption = 'Delete'
+          TabOrder = 3
+          OnClick = BtnDeleteClick
+        end
+      end
+      object BookmarkTree: TTreeView
+        Left = 0
+        Top = 0
+        Width = 456
+        Height = 243
+        Align = alClient
+        Indent = 19
+        TabOrder = 1
+        OnChange = BookmarkTreeChange
+      end
+    end
+    object TabSheet2: TTabSheet
+      Caption = 'Font && Colors'
+      ImageIndex = 1
+    end
+  end
+end

@@ -1,0 +1,60 @@
+unit BookmarkUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Menus;
+
+type
+  TBookmarkForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    SG1: TStringGrid;
+    Button1: TButton;
+    PopupMenu1: TPopupMenu;
+    N1: TMenuItem;
+    N2: TMenuItem;
+    procedure FormCreate(Sender: TObject);
+    procedure SG1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+  private
+    { Private 宣言 }
+    FCol: Integer;
+    FRow: Integer;
+  public
+    { Public 宣言 }
+  end;
+
+var
+  BookmarkForm: TBookmarkForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TBookmarkForm.FormCreate(Sender: TObject);
+begin
+  SG1.Cells[0, 0] := 'コマンド';
+  SG1.Cells[1, 0] := 'パス';
+end;
+
+procedure TBookmarkForm.SG1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  MousePos: TPoint;
+
+begin
+  if Button = mbRight then
+  begin
+    SG1.MouseToCell(X, Y, FCol, FRow);
+    if (FCol >= 0) and (FRow >= 0) then
+    begin
+      GetCursorPos(MousePos);
+      PopupMenu1.Popup(X, Y);
+    end;
+  end;
+end;
+
+end.

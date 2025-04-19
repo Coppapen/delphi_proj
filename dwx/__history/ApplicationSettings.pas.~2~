@@ -1,0 +1,75 @@
+unit ApplicationSettings;
+
+interface
+
+uses
+  System.SysUtils, Vcl.Graphics;
+
+type
+  TPosition = record
+    Top:    Integer;
+    Left:   Integer;
+    Height: Integer;
+    Width:  Integer;
+  end;
+
+  TFontInfo = record
+    Name: string;
+    Size: Integer;
+  end;
+
+  TEditColors = record
+    Background: TColor;
+    Text: TColor;
+  end;
+
+  TListViewColors = record
+    Background: TColor;
+    Text: TColor;
+    SelectedItems: TColor;
+    UnderLine: TColor;
+  end;
+
+  TAddressBarConfig = record
+    Font: TFontInfo;
+    Colors: TEditColors;
+  end;
+
+  TListViewConfig = record
+    Font: TFontInfo;
+    Colors: TListViewColors;
+  end;
+
+  TSearchBoxConfig = record
+    Font: TFontInfo;
+    Colors: TEditColors;
+  end;
+
+  THistoryMemoConfig = record
+    Font: TFontInfo;
+    Colors: TEditColors;
+    Height: Integer;
+  end;
+
+  TWindowConfig = record
+    AddressBar: TAddressBarConfig;
+    ListView: TListViewConfig;
+    SearchBox: TSearchBoxConfig;
+    Width: Integer;
+  end;
+
+  TCurrentDirs = record
+    L: string;
+    R: string;
+  end;
+
+  TConfig = record
+    Position: TPosition;
+    CurrentDirs: TCurrentDirs;
+    WindowConfig: TWindowConfig;
+    HistoryMemoConfig: THistoryMemoConfig;
+  end;
+
+implementation
+
+end.

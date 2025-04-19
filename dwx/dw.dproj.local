@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2023/08/26 13:24:58.000.818,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 19:50:15.000.742,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 19:50:52.000.299,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 20:14:58.000.607,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 20:35:08.000.972,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/03/21 22:51:34.000.961,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/03/21 22:51:49.000.479,C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas=C:\Users\coppepan\Desktop\dwx\MainUnit.pas</Transaction>
+    <Transaction>2025/03/21 22:51:49.000.479,C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.dfm=C:\Users\coppepan\Desktop\dwx\MainUnit.dfm</Transaction>
+    <Transaction>2025/03/21 22:51:57.000.355,C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Project1.dproj=C:\Users\coppepan\Desktop\dwx\dwx.dproj</Transaction>
+    <Transaction>2025/03/21 22:52:15.000.363,=C:\Users\coppepan\Desktop\dwx\ListBoxFrameUnit.pas</Transaction>
+    <Transaction>2025/03/21 23:06:55.000.442,=C:\Users\coppepan\Desktop\dwx\SortSelectUnit.pas</Transaction>
+    <Transaction>2025/03/21 23:15:52.000.274,=C:\Users\coppepan\Desktop\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/03/21 23:16:12.000.565,C:\Users\coppepan\Desktop\dwx\Unit1.pas=C:\Users\coppepan\Desktop\dwx\ExplorerUtils.pas</Transaction>
+    <Transaction>2025/03/22 09:25:21.000.584,=C:\Users\coppepan\Desktop\dwx\Unit2.pas</Transaction>
+    <Transaction>2025/03/22 09:27:56.000.578,C:\Users\coppepan\Desktop\dwx\Unit2.pas=C:\Users\coppepan\Desktop\dwx\InputUnit.pas</Transaction>
+    <Transaction>2025/03/22 09:27:56.000.578,C:\Users\coppepan\Desktop\dwx\Unit2.dfm=C:\Users\coppepan\Desktop\dwx\InputUnit.dfm</Transaction>
+    <Transaction>2025/03/22 09:35:24.000.833,=C:\Users\coppepan\Desktop\dwx\Unit2.pas</Transaction>
+    <Transaction>2025/03/22 09:36:27.000.212,C:\Users\coppepan\Desktop\dwx\Unit2.pas=C:\Users\coppepan\Desktop\dwx\FileConfirm.pas</Transaction>
+    <Transaction>2025/03/22 09:36:27.000.212,C:\Users\coppepan\Desktop\dwx\Unit2.dfm=C:\Users\coppepan\Desktop\dwx\FileConfirm.dfm</Transaction>
+    <Transaction>2025/03/26 22:21:33.000.158,C:\Users\coppepan\Desktop\dwx\dw.dproj=C:\Users\coppepan\Desktop\dwx\dwx.dproj</Transaction>
+    <Transaction>2025/03/27 18:43:43.000.019,=C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/03/27 18:43:55.000.808,C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\FileMonitor.pas</Transaction>
+    <Transaction>2025/04/05 11:44:54.000.723,C:\Users\coppepan\Documents\Delphi\proj\dwx\ListBoxFrameUnit.dfm=C:\Users\coppepan\Documents\Delphi\proj\dwx\ListViewFrameUnit.dfm</Transaction>
+    <Transaction>2025/04/05 11:44:54.000.723,C:\Users\coppepan\Documents\Delphi\proj\dwx\ListBoxFrameUnit.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\ListViewFrameUnit.pas</Transaction>
+    <Transaction>2025/04/09 20:07:32.000.720,=C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/04/09 20:07:54.000.950,C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\BookmarkUtils.pas</Transaction>
+    <Transaction>2025/04/10 21:53:49.000.220,C:\Users\coppepan\Documents\Delphi\proj\dwx\BookmarkUtils.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\BookmarkManager.pas</Transaction>
+    <Transaction>2025/04/10 22:27:19.000.493,C:\Users\coppepan\Documents\Delphi\proj\dwx\BookmarkManager.pas=</Transaction>
+    <Transaction>2025/04/10 22:27:32.000.410,=C:\Users\coppepan\Documents\Delphi\proj\dwx\BookmarkManager.pas</Transaction>
+    <Transaction>2025/04/12 10:12:40.000.684,=C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/04/12 10:12:53.000.299,C:\Users\coppepan\Documents\Delphi\proj\dwx\ApplicationSettings.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/04/13 09:44:53.000.488,=C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/04/13 09:45:14.000.030,C:\Users\coppepan\Documents\Delphi\proj\dwx\FileTransfer.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\Unit1.pas</Transaction>
+    <Transaction>2025/04/15 20:24:23.000.900,C:\Users\coppepan\Documents\Delphi\proj\dwx\FileConfirm.pas=C:\Users\coppepan\Documents\Delphi\proj\dwx\OverwriteConfirm.pas</Transaction>
+    <Transaction>2025/04/15 20:24:23.000.900,C:\Users\coppepan\Documents\Delphi\proj\dwx\FileConfirm.dfm=C:\Users\coppepan\Documents\Delphi\proj\dwx\OverwriteConfirm.dfm</Transaction>
+    <Transaction>2025/04/17 21:04:57.441,=C:\Users\coppepan\Documents\Delphi\res\ico\shell32_275.ico</Transaction>
+    <Transaction>2025/04/19 20:44:01.099,C:\Users\coppepan\Documents\Delphi\res\ico\shell32_275.ico=</Transaction>
+  </Transactions>
+</BorlandProject>

@@ -1,0 +1,239 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls,
+  VirtualExplorerTree, VirtualTrees, winapi.ShellAPI, System.ImageList,
+  Vcl.ImgList, Winapi.ShlObj, Winapi.CommCtrl, System.Win.ComObj, Vcl.ToolWin,
+  VirtualShellToolBar, MPShellUtilities, System.IOUtils, Vcl.Buttons,
+  Vcl.StdCtrls, VirtualFileSearch, Vcl.WinXCtrls, System.Types;
+
+type
+  PQuickAccessItem = ^TQuickAccessItem;
+  TQuickAccessItem = record
+    Display : string;
+    FullPath: string;
+  end;
+
+  TMainForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    SubTree1: TVirtualExplorerTree;
+    ListView1: TListView;
+    Splitter1: TSplitter;
+    Splitter2: TSplitter;
+    QAImageList: TImageList;
+    Panel6: TPanel;
+    ExplorerCombobox1: TVirtualExplorerCombobox;
+    UpButton: TSpeedButton;
+    ForwardButton: TSpeedButton;
+    BackButton: TSpeedButton;
+    Splitter3: TSplitter;
+    SearchBox1: TSearchBox;
+    Panel5: TPanel;
+    ResImageList: TImageList;
+    CreateButton: TSpeedButton;
+    CutButton: TSpeedButton;
+    CopyButton: TSpeedButton;
+    RenameButton: TSpeedButton;
+    PasteButton: TSpeedButton;
+    DeleteButton: TSpeedButton;
+    Treeview1: TVirtualExplorerTreeview;
+    ReloadButton: TSpeedButton;
+    procedure FormCreate(Sender: TObject);
+    procedure ListView1Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure Treeview1KeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure ExplorerCombobox1Change(Sender: TObject);
+    procedure Treeview1RootChange(Sender: TCustomVirtualExplorerTree);
+    procedure Treeview1TreeDblClick(Sender: TCustomVirtualExplorerTree;
+      Node: PVirtualNode; Button: TMouseButton; Point: TPoint);
+    procedure ReloadButtonClick(Sender: TObject);
+    procedure UpButtonClick(Sender: TObject);
+  private
+    { Private êÈåæ }
+    function GetLogicalDriveStrings: TStringDynArray;
+    procedure FileOpen(const FileName: string);
+    procedure ShowQuickAccessView;
+  public
+    { Public êÈåæ }
+  end;
+
+var
+  MainForm: TMainForm;
+
+implementation
+
+{$R *.dfm}
+
+{ TMainForm }
+
+procedure TMainForm.ExplorerCombobox1Change(Sender: TObject);
+begin
+  if (TDirectory.Exists(ExplorerCombobox1.Path)) then
+    TreeView1.RootFolderCustomPath := ExplorerCombobox1.Path;
+end;
+
+procedure TMainForm.FileOpen(const FileName: string);
+var
+  hInstance: Cardinal;
+
+begin
+  hInstance := ShellExecute(Handle, 'Open', PChar(FileName), #0, nil, SW_SHOW);
+  if (hInstance <= 32) then
+    MessageBox(Handle, 'ãNìÆÇ…é∏îsÇµÇ‹ÇµÇΩ', 'ÉGÉâÅ[', MB_ICONSTOP);
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+begin
+  ShowQuickAccessView;
+  QAImageList.BkColor := ListView1.Color;
+end;
+
+procedure TMainForm.FormShow(Sender: TObject);
+begin
+  TreeView1.SetFocus;
+end;
+
+function TMainForm.GetLogicalDriveStrings: TStringDynArray;
+var
+  r: Integer;
+  DriveBits: set of 0..25;
+
+begin
+  Result := nil;
+  r := GetLogicalDrives;
+  if (r <> 0) then
+  begin
+    Integer(DriveBits) := r;
+    for var i := 0 to 25 do
+    begin
+      if (i in DriveBits) then
+      begin
+        SetLength(Result, Length(Result) + 1);
+        Result[High(Result)] := Char(i + Ord('A'));
+      end;
+    end;
+  end;
+end;
+
+procedure TMainForm.ListView1Click(Sender: TObject);
+var
+  QAItem: TQuickAccessItem;
+
+begin
+  if (ListView1.Selected <> nil) then
+  begin
+    QAItem := TQuickAccessItem(ListView1.Selected.Data^);
+    TreeView1.RootFolderCustomPath := QAItem.FullPath;
+    //TreeView1.SetFocus;
+  end;
+end;
+
+procedure TMainForm.ReloadButtonClick(Sender: TObject);
+begin
+  TreeView1.RefreshTree;
+end;
+
+procedure TMainForm.ShowQuickAccessView;
+const
+  QuickAccess = 'shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}';
+
+var
+  Shell : OleVariant;
+  Folder: OleVariant;
+  FolderItems: OleVariant;
+  FolderItem : OleVariant;
+  ItemCount: Integer;
+  QAItem: PQuickAccessItem;
+  ListItem: TListItem;
+  FileInfo: TSHFileInfo;
+  Icon: TIcon;
+
+begin
+  QAImageList.BkColor := ListView1.Color;
+  ListView1.Clear;
+  Shell  := CreateOleObject('Shell.Application');
+  Folder := Shell.NameSpace(QuickAccess);
+  FolderItems := Folder.Items;
+  ItemCount := FolderItems.Count;
+  for var i := 0 to ItemCount - 1 do
+  begin
+    FolderItem := FolderItems.Item(i);
+    ListItem := ListView1.Items.Add;
+    ListItem.Caption := FolderItem.Name;
+    New(QAItem);
+    QAItem^.Display  := FolderItem.Name;
+    QAItem^.FullPath := FolderItem.Path;
+    ListItem.Data := Pointer(QAItem);
+    Icon := TIcon.Create;
+    try
+      SHGetFileInfo(PChar(string(FolderItem.Path)), 0, FileInfo, SizeOf(FileInfo),
+        SHGFI_SMALLICON or SHGFI_ICON or SHGFI_SHELLICONSIZE);
+      Icon.Handle := FileInfo.hIcon;
+      ListItem.ImageIndex := QAImageList.AddIcon(Icon);
+    finally
+      Icon.Free;
+    end;
+  end;
+end;
+
+procedure TMainForm.Treeview1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+
+begin
+  if (Key = VK_RETURN) then
+  begin
+    Node := TreeView1.GetFirstSelected;
+    if (Node = nil) then
+      Exit;
+    if (Sender as TVirtualExplorerTreeView).ValidateNamespace(Node, NameSpace) then
+    begin
+      if (TDirectory.Exists(NameSpace.NameParseAddress)) then
+        TreeView1.RootFolderCustomPath := NameSpace.NameParseAddress
+      else
+        FileOpen(NameSpace.NameParseAddress);
+    end;
+  end;
+end;
+
+procedure TMainForm.Treeview1RootChange(Sender: TCustomVirtualExplorerTree);
+begin
+  MainForm.Caption := TreeView1.RootFolderCustomPath;
+end;
+
+procedure TMainForm.Treeview1TreeDblClick(Sender: TCustomVirtualExplorerTree;
+  Node: PVirtualNode; Button: TMouseButton; Point: TPoint);
+var
+  NameSpace: TNameSpace;
+
+begin
+  if (Sender as TVirtualExplorerTreeView).ValidateNamespace(Node, NameSpace) then
+  begin
+    if (TDirectory.Exists(NameSpace.NameParseAddress)) then
+      TreeView1.RootFolderCustomPath := NameSpace.NameParseAddress
+    else
+      FileOpen(NameSpace.NameParseAddress);
+  end;
+end;
+
+procedure TMainForm.UpButtonClick(Sender: TObject);
+var
+  Path: string;
+
+begin
+  Path := ExcludeTrailingPathDelimiter(TreeView1.RootFolderCustomPath);
+  Path := TDirectory.GetParent(Path);
+  if (TDirectory.Exists(Path)) then
+    TreeView1.RootFolderCustomPath := Path;
+end;
+
+end.

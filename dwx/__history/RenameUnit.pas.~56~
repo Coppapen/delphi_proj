@@ -1,0 +1,151 @@
+unit RenameUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, System.Generics.Collections,
+  System.Generics.Defaults, ExplorerUtils, Winapi.ShellAPI, Vcl.ComCtrls, System.IOUtils,
+  System.StrUtils;
+
+type
+  TRenameFile = record
+    Directory: string;
+    FileName : string;
+    OriginalName: string;
+    OriginalPath: string;
+  end;
+
+  TRenameForm = class(TForm)
+    Memo1: TMemo;
+    Memo2: TMemo;
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    StatusBar1: TStatusBar;
+    procedure FormResize(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+  private
+    { Private êÈåæ }
+    FFiles: TList<TRenameFile>;
+    function CheckFileNames: Boolean;
+    procedure RenameFiles;
+  public
+    { Public êÈåæ }
+    procedure AddFileName(const FileName: string);
+  end;
+
+var
+  RenameForm: TRenameForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TRenameForm.AddFileName(const FileName: string);
+var
+  AFile: TRenameFile;
+
+begin
+  AFile.OriginalName := ExtractFileName(FileName);
+  AFile.OriginalPath := FileName;
+  AFile.FileName  := AFile.OriginalName;
+  AFile.Directory := ExtractFilePath(FileName);
+  FFiles.Add(AFile);
+end;
+
+function TRenameForm.CheckFileNames: Boolean;
+var
+  F1, F2: TRenameFile;
+
+begin
+  for var i := 0 to FFiles.Count - 1 do
+  begin
+    F1 := FFiles[i];
+    F1.FileName := Memo2.Lines[i];
+    if MatchText(F1.FileName, UnusableFileName) then
+      Exit(False)
+    else
+    if TDirectory.Exists(F1.Directory + F1.FileName) then
+      Exit(False)
+    else
+    if FileExists(F1.Directory + F1.FileName) then
+      Exit(False);
+    for var j := i + 1 to FFiles.Count - 1 do
+    begin
+      F2 := FFiles[j];
+      if F1.Directory + F1.FileName = F2.Directory + F2.FileName then
+        Exit(False);
+    end;
+  end;
+  Result := True;
+end;
+
+procedure TRenameForm.FormCreate(Sender: TObject);
+begin
+  FFiles := TList<TRenameFile>.Create;
+end;
+
+procedure TRenameForm.FormDestroy(Sender: TObject);
+begin
+  FFiles.Free;
+end;
+
+procedure TRenameForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  case Key of
+    Ord('S'):
+      begin
+        if ssCtrl in Shift then
+        begin
+          if CheckFileNames then
+            RenameFiles
+          else
+            StatusBar1.Panels[1].Text := 'ÉtÉ@ÉCÉãñºÇå©íºÇµÇƒâ∫Ç≥Ç¢';
+        end;
+      end;
+    VK_ESCAPE: RenameForm.Close;
+  end;
+end;
+
+procedure TRenameForm.FormResize(Sender: TObject);
+begin
+  Memo1.Width  := RenameForm.Width div 2;
+  Panel2.Width := RenameForm.Width div 2;
+end;
+
+procedure TRenameForm.FormShow(Sender: TObject);
+var
+  AFile: TRenameFile;
+
+begin
+  Memo1.Clear;
+  Memo2.Clear;
+  for var i := 0 to FFiles.Count - 1 do
+  begin
+    AFile := FFiles[i];
+    Memo1.Lines.Add(AFile.OriginalName);
+    Memo2.Lines.Add(AFile.OriginalName);
+  end;
+  StatusBar1.Panels[1].Text := '';
+end;
+
+procedure TRenameForm.RenameFiles;
+var
+  AFile: TRenameFile;
+
+begin
+  for var i := 0 to FFiles.Count - 1 do
+  begin
+    AFile := FFiles[i];
+    FileOperation(AFile.OriginalName, AFile.Directory + AFile.FileName, FO_RENAME);
+  end;
+  FFiles.Clear;
+  RenameForm.Close;
+end;
+
+end.

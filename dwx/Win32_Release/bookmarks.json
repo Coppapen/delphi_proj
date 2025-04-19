@@ -1,0 +1,63 @@
+﻿{
+  "bookmarks": [
+    {
+      "category": "",
+      "items": [
+        {
+          "name": "ドキュメント",
+          "path": "C:\\Users\\coppepan\\Documents"
+        },
+        {
+          "name": "デスクトップ",
+          "path": "C:\\Users\\coppepan\\Desktop"
+        },
+        {
+          "name": "ダウンロード",
+          "path": "C:\\Users\\coppepan\\Downloads"
+        },
+        {
+          "name": "Delphi",
+          "path": "C:\\Users\\coppepan\\Documents\\Delphi"
+        }
+      ]
+    },
+    {
+      "category": "PC",
+      "items": [
+        {
+          "name": "Cドライブ",
+          "path": "C:\\"
+        },
+        {
+          "name": "Dドライブ",
+          "path": "D:\\"
+        }
+      ]
+    },
+    {
+      "category": "Nas",
+      "items": [
+        {
+          "name": "Coppepan",
+          "path": "\\\\192.168.2.103\\Coppepan"
+        },
+        {
+          "name": "Game",
+          "path": "\\\\192.168.2.103\\Game"
+        },
+        {
+          "name": "Music",
+          "path": "\\\\192.168.2.103\\Music"
+        },
+        {
+          "name": "Photo",
+          "path": "\\\\192.168.2.103\\Photo"
+        },
+        {
+          "name": "Video",
+          "path": "\\\\192.168.2.103\\Video"
+        }
+      ]
+    }
+  ]
+}

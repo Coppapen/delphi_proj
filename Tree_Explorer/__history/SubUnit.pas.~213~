@@ -1,0 +1,867 @@
+{
+  ToDo
+}
+
+unit SubUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.ComCtrls,
+  VirtualExplorerTree, VirtualTrees, winapi.ShellAPI, System.ImageList,
+  Vcl.ImgList, Winapi.ShlObj, Winapi.CommCtrl, System.Win.ComObj, Vcl.ToolWin,
+  VirtualShellToolBar, MPShellUtilities, System.IOUtils, Vcl.Buttons,
+  Vcl.StdCtrls, VirtualFileSearch, Vcl.WinXCtrls, System.Types, System.StrUtils,
+  VirtualShellHistory, System.Win.TaskbarCore, Vcl.Taskbar, Vcl.JumpList,
+  MainUnit, System.Generics.Collections, System.Generics.Defaults,
+  JvComponentBase, JvDragDrop, Vcl.Menus, Vcl.AppEvnts;
+
+const
+  {$EXTERNALSYM MK_XBUTTON1}
+  MK_XBUTTON1 = $20;
+  {$EXTERNALSYM MK_XBUTTON2}
+  MK_XBUTTON2 = $40;
+  {$EXTERNALSYM XBUTTON1}
+  XBUTTON1 = $1;
+  {$EXTERNALSYM XBUTTON2}
+  XBUTTON2 = $2;
+
+type
+  THistoryState = (hsBack, hsNext, hsNone);
+
+  TExplorerHistory = class
+  strict private
+    FHistory: TStringList;
+    FIndex: Integer;
+    FState: THistoryState;
+    // function GetHistory(const Index: Integer): string;
+  private
+    function GetCount: Integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Back: string;
+    function Next: string;
+    procedure Add(const Path: string);
+    procedure Delete;
+    property Count: Integer read GetCount;
+    property State: THistoryState read FState write FState;
+  end;
+
+  TExplorerForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    SubTree1: TVirtualExplorerTree;
+    ListView1: TListView;
+    Splitter1: TSplitter;
+    Splitter2: TSplitter;
+    QAImageList: TImageList;
+    Panel6: TPanel;
+    ExplorerCombobox1: TVirtualExplorerCombobox;
+    UpButton: TSpeedButton;
+    ForwardButton: TSpeedButton;
+    BackButton: TSpeedButton;
+    Splitter3: TSplitter;
+    SearchBox1: TSearchBox;
+    Panel5: TPanel;
+    ResImageList: TImageList;
+    CreateButton: TSpeedButton;
+    CutButton: TSpeedButton;
+    CopyButton: TSpeedButton;
+    RenameButton: TSpeedButton;
+    PasteButton: TSpeedButton;
+    DeleteButton: TSpeedButton;
+    ReloadButton: TSpeedButton;
+    Treeview1: TVirtualExplorerTreeview;
+    StatusBar1: TStatusBar;
+    JumpList1: TJumpList;
+    PopupMenu1: TPopupMenu;
+    JvDragDrop1: TJvDragDrop;
+    N1: TMenuItem;
+    N2: TMenuItem;
+    N3: TMenuItem;
+    N4: TMenuItem;
+    PopupMenu2: TPopupMenu;
+    N5: TMenuItem;
+    N6: TMenuItem;
+    N7: TMenuItem;
+    N8: TMenuItem;
+    N9: TMenuItem;
+    ApplicationEvents1: TApplicationEvents;
+    procedure FormCreate(Sender: TObject);
+    procedure ListView1Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure Treeview1KeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure ExplorerCombobox1Change(Sender: TObject);
+    procedure Treeview1RootChange(Sender: TCustomVirtualExplorerTree);
+    procedure Treeview1TreeDblClick(Sender: TCustomVirtualExplorerTree;
+      Node: PVirtualNode; Button: TMouseButton; Point: TPoint);
+    procedure ReloadButtonClick(Sender: TObject);
+    procedure UpButtonClick(Sender: TObject);
+    procedure CutButtonClick(Sender: TObject);
+    procedure CopyButtonClick(Sender: TObject);
+    procedure PasteButtonClick(Sender: TObject);
+    procedure DeleteButtonClick(Sender: TObject);
+    procedure RenameButtonClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure BackButtonClick(Sender: TObject);
+    procedure ForwardButtonClick(Sender: TObject);
+    procedure SubTree1TreeDblClick(Sender: TCustomVirtualExplorerTree;
+      Node: PVirtualNode; Button: TMouseButton; Point: TPoint);
+    procedure JvDragDrop1Drop(Sender: TObject; Pos: TPoint; Value: TStrings);
+    procedure N4Click(Sender: TObject);
+    procedure N1Click(Sender: TObject);
+    procedure N2Click(Sender: TObject);
+    procedure Treeview1DragOver(Sender: TBaseVirtualTree; Source: TObject;
+      Shift: TShiftState; State: TDragState; Pt: TPoint; Mode: TDropMode;
+      var Effect: Integer; var Accept: Boolean);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure Treeview1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure N8Click(Sender: TObject);
+    procedure N9Click(Sender: TObject);
+    procedure ApplicationEvents1Message(var Msg: tagMSG; var Handled: Boolean);
+    procedure CreateButtonClick(Sender: TObject);
+    procedure N6Click(Sender: TObject);
+    procedure SearchBox1KeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure N7Click(Sender: TObject);
+  private
+    { Private êÈåæ }
+    FExplorerHistory: TExplorerHistory;
+    FDragOverMouseButton: Integer;
+    FDragOverFiles: TStrings;
+    function CheckNewTextFileName(const Path: string): string;
+    function GetLogicalDriveStrings: TStringDynArray;
+    function MoveFiles(const Files: TStrings; TargetDir: string;
+      IsCopy: Boolean = False): Boolean;
+    procedure CreateNewDirectory(const RootDir: string);
+    procedure ExecuteCommandPrompt(const Path: string);
+    procedure FileOpen(const FileName: string);
+    procedure ShowFileProperties(const Path: string);
+    procedure ShowQuickAccessView;
+    procedure SearchAndSelectNodes(const Keyword: string);
+    procedure WMSetText(var Msg: TMessage); message WM_SETTEXT;
+  public
+    { Public êÈåæ }
+    procedure SetRootFolder(const Path: string); overload;
+    procedure SetRootFolder(const RootFolder: TRootFolder); overload;
+  end;
+
+var
+  ExplorerForm: TExplorerForm;
+
+implementation
+
+{$R *.dfm}
+
+{ TMainForm }
+
+procedure TExplorerForm.ApplicationEvents1Message(var Msg: tagMSG;
+  var Handled: Boolean);
+begin
+  case Msg.message of
+    WM_XBUTTONDOWN:
+      case LoWord(Msg.wParam) of
+        MK_XBUTTON1: TreeView1.RootFolderCustomPath := FExplorerHistory.Back;
+        MK_XBUTTON2: TreeView1.RootFolderCustomPath := FExplorerHistory.Next;
+      end;
+  end;
+end;
+
+procedure TExplorerForm.BackButtonClick(Sender: TObject);
+begin
+  TreeView1.RootFolderCustomPath := FExplorerHistory.Back;
+end;
+
+function TExplorerForm.CheckNewTextFileName(const Path: string): string;
+const
+  NewTextFileName = 'NewTextDoc';
+  Extension = '.txt';
+
+var
+  FileName: string;
+  i: Integer;
+
+begin
+  FileName := IncludeTrailingPathDelimiter(Path) + NewTextFileName + Extension;
+  i := 0;
+  while TDirectory.Exists(FileName) do
+  begin
+    Inc(i);
+    FileName := IncludeTrailingPathDelimiter(Path) + NewTextFileName +
+      Format('%d', [i]) + Extension;
+  end;
+  Result := FileName;
+end;
+
+procedure TExplorerForm.CopyButtonClick(Sender: TObject);
+begin
+  TreeView1.CopyToClipboard;
+end;
+
+procedure TExplorerForm.CreateButtonClick(Sender: TObject);
+var
+  NameSpace: TNameSpace;
+
+begin
+  if (TreeView1.SelectedCount = 1) then
+  begin
+    var Node := TreeView1.GetFirstSelected;
+    TreeView1.Expanded[Node] := True;
+    if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      CreateNewDirectory(NameSpace.NameParseAddress);
+  end else
+    CreateNewDirectory(TreeView1.RootFolderCustomPath);
+end;
+
+procedure TExplorerForm.CreateNewDirectory(const RootDir: string);
+var
+  NameSpace: TNameSpace;
+  NewFolder: string;
+
+begin
+  var Node := TreeView1.FindNode(RootDir);
+  if (Node = nil) or not (TDirectory.Exists(RootDir)) then
+    Exit;
+  if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+  begin
+    if (TreeView1.CreateNewFolder(RootDir, NewFolder)) then
+    begin
+      var NewFolderNode := TreeView1.FindNode(NewFolder);
+      Treeview1.Selected[NewFolderNode] := True;
+      keybd_event(VK_F2, MapVirtualKey(VK_F2, 0), 0, 0);
+      keybd_event(VK_F2, MapVirtualKey(VK_F2, 0), KEYEVENTF_KEYUP, 0);
+    end;
+    TreeView1.RefreshTree(True);
+  end;
+end;
+
+procedure TExplorerForm.CutButtonClick(Sender: TObject);
+begin
+  TreeView1.CutToClipboard;
+end;
+
+procedure TExplorerForm.DeleteButtonClick(Sender: TObject);
+begin
+  TreeView1.SelectedFilesDelete;
+end;
+
+procedure TExplorerForm.ExecuteCommandPrompt(const Path: string);
+var
+  FileName: string;
+  Params: string;
+
+begin
+  FileName := 'cmd.exe';
+  Params := '';
+  ShellExecute(Handle, 'open', PChar(FileName), PChar(Params), PChar(Path),
+    SW_SHOWNORMAL);
+end;
+
+procedure TExplorerForm.ExplorerCombobox1Change(Sender: TObject);
+var
+  Path1, Path2: string;
+
+begin
+  Path1 := IncludeTrailingPathDelimiter(ExplorerCombobox1.Path);
+  Path2 := IncludeTrailingPathDelimiter(TreeView1.RootFolderCustomPath);
+  if (TDirectory.Exists(ExplorerCombobox1.Path)) and (Path1 <> Path2) then
+    TreeView1.RootFolderCustomPath := ExplorerCombobox1.Path;
+end;
+
+procedure TExplorerForm.FileOpen(const FileName: string);
+var
+  hInstance: Cardinal;
+
+begin
+  hInstance := ShellExecute(Handle, 'Open', PChar(FileName), #0, nil, SW_SHOW);
+  if (hInstance <= 32) then
+    MessageBox(Handle, 'ãNìÆÇ…é∏îsÇµÇ‹ÇµÇΩ', 'ÉGÉâÅ[', MB_ICONSTOP);
+end;
+
+procedure TExplorerForm.FormCreate(Sender: TObject);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+
+begin
+  FExplorerHistory := TExplorerHistory.Create;
+  ShowQuickAccessView;
+  QAImageList.BkColor := ListView1.Color;
+  TreeView1.FileObjects := [foFolders, foNonFolders];
+  SetWindowLong(Application.Handle, GWL_EXSTYLE, WS_EX_TOOLWINDOW);
+  SetWindowLong(Self.Handle, GWL_HWNDPARENT, 0);
+  Node := TreeView1.GetFirst;
+  if (Node <> nil) then
+  begin
+    if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      Caption := NameSpace.NameParseAddress;
+  end;
+end;
+
+procedure TExplorerForm.FormDestroy(Sender: TObject);
+begin
+  FExplorerHistory.Free;
+end;
+
+procedure TExplorerForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+
+begin
+  if (not (ssShift in Shift)) and (ssCtrl in Shift) and (Key = Ord('N')) then
+  begin
+    Node := TreeView1.GetFirst;
+    if (Node <> nil) then
+    begin
+      if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      begin
+        if (not TDirectory.Exists(NameSpace.NameParseAddress)) then
+          MainForm.CreateNewForm(TreeView1.RootFolder)
+        else
+          MainForm.CreateNewForm(NameSpace.NameParseAddress);
+      end;
+    end;
+  end else
+  if (ssCtrl in Shift) and (Key = ord('F')) then
+    SearchBox1.SetFocus;
+end;
+
+procedure TExplorerForm.FormShow(Sender: TObject);
+begin
+  TreeView1.SetFocus;
+end;
+
+procedure TExplorerForm.ForwardButtonClick(Sender: TObject);
+begin
+  TreeView1.RootFolderCustomPath := FExplorerHistory.Next;
+end;
+
+function TExplorerForm.GetLogicalDriveStrings: TStringDynArray;
+var
+  r: Integer;
+  DriveBits: set of 0..25;
+
+begin
+  Result := nil;
+  r := GetLogicalDrives;
+  if (r <> 0) then
+  begin
+    Integer(DriveBits) := r;
+    for var i := 0 to 25 do
+    begin
+      if (i in DriveBits) then
+      begin
+        SetLength(Result, Length(Result) + 1);
+        Result[High(Result)] := Char(i + Ord('A')) + ':';
+      end;
+    end;
+  end;
+end;
+
+procedure TExplorerForm.JvDragDrop1Drop(Sender: TObject; Pos: TPoint;
+  Value: TStrings);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+  MousePos: TPoint;
+
+begin
+  if (TreeView1.GetNodeAt(MousePos) = nil) then
+  begin
+    GetCursorPos(MousePos);
+    Node := TreeView1.GetFirst;
+    if (Node <> nil) then
+    begin
+      if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      begin
+        if (FDragOverMouseButton <> - 1) then
+        begin
+          case FDragOverMouseButton of
+            Integer(mbLeft) : MoveFiles(Value, NameSpace.NameParseAddress);
+            Integer(mbRight):
+              begin
+                FDragOverFiles := Value;
+                PopupMenu1.Popup(MousePos.X, MousePos.Y);
+              end;
+          end;
+        end;
+      end;
+    end;
+  end;
+  TreeView1.RefreshTree(True);
+  FDragOverMouseButton := - 1;
+end;
+
+procedure TExplorerForm.ListView1Click(Sender: TObject);
+var
+  QAItem: TQuickAccessItem;
+
+begin
+  if (ListView1.Selected <> nil) then
+  begin
+    QAItem := TQuickAccessItem(ListView1.Selected.Data^);
+    TreeView1.RootFolderCustomPath := QAItem.FullPath;
+  end;
+end;
+
+function TExplorerForm.MoveFiles(const Files: TStrings; TargetDir: string;
+  IsCopy: Boolean): Boolean;
+var
+  FileOp: TSHFileOpStructW;
+  StrFrom: string;
+
+begin
+  for var i := 0 to Files.Count - 1 do
+    StrFrom := StrFrom + NullChar + Files[i];
+  Delete(StrFrom, 1, 1);
+  with FileOp do
+  begin
+    Wnd := Application.Handle;
+    if (IsCopy) then
+      wFunc := FO_COPY
+    else
+      wFunc := FO_MOVE;
+    pFrom := PChar(StrFrom   + NullChar);
+    pTo   := PChar(TargetDir + NullChar);
+    fFlags := FOF_ALLOWUNDO;
+    hNameMappings := nil;
+    lpszProgressTitle := nil;
+  end;
+  Result := SHFileOperationW(FileOp) = 0;
+end;
+
+procedure TExplorerForm.N1Click(Sender: TObject);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+
+begin
+  Node := TreeView1.GetFirst;
+  if (Node <> nil) then
+  begin
+    if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      MoveFiles(FDragOverFiles, NameSpace.NameParseAddress, True);
+  end;
+end;
+
+procedure TExplorerForm.N2Click(Sender: TObject);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+
+begin
+  Node := TreeView1.GetFirst;
+  if (Node <> nil) then
+  begin
+    if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      MoveFiles(FDragOverFiles, NameSpace.NameParseAddress);
+  end;
+end;
+
+procedure TExplorerForm.N4Click(Sender: TObject);
+begin
+  PopupMenu1.CloseMenu;
+end;
+
+procedure TExplorerForm.N6Click(Sender: TObject);
+begin
+  // Show Properties
+  ShowFileProperties(TreeView1.RootFolderCustomPath);
+end;
+
+procedure TExplorerForm.N7Click(Sender: TObject);
+begin
+  // Execute Command Prompt
+  ExecuteCommandPrompt(TreeView1.RootFolderCustomPath);
+end;
+
+procedure TExplorerForm.N8Click(Sender: TObject);
+begin
+  // Create New Folder
+  with TreeView1 do
+    CreateNewFolder(RootFolderCustomPath);
+end;
+
+procedure TExplorerForm.N9Click(Sender: TObject);
+var
+  Text: TStringList;
+  FileName: string;
+
+begin
+  // Create New TextFile
+  if (TreeView1.RootFolderCustomPath = '') then
+    Exit;
+  Text := TStringList.Create;
+  try
+    FileName := CheckNewTextFileName(TreeView1.RootFolderCustomPath);
+    Text.SaveToFile(FileName);
+    TreeView1.RefreshTree(True);
+    if (FileExists(FileName)) then
+    begin
+      var Node := TreeView1.FindNode(FileName);
+      if (Node <> nil) then
+      begin
+        Treeview1.Selected[Node] := True;
+        keybd_event(VK_F2, MapVirtualKey(VK_F2, 0), 0, 0);
+        keybd_event(VK_F2, MapVirtualKey(VK_F2, 0), KEYEVENTF_KEYUP, 0);
+      end;
+    end;
+  finally
+    Text.Free;
+  end;
+end;
+
+procedure TExplorerForm.PasteButtonClick(Sender: TObject);
+begin
+  TreeView1.PasteFromClipboard;
+end;
+
+procedure TExplorerForm.ReloadButtonClick(Sender: TObject);
+begin
+  TreeView1.RefreshTree;
+end;
+
+procedure TExplorerForm.RenameButtonClick(Sender: TObject);
+var
+  Key: Word;
+
+begin
+  Key := VK_F2;
+  keybd_event(LoByte(Key), 0, 0, 0);
+  keybd_event(LoByte(Key), 0, KEYEVENTF_KEYUP, 0);
+end;
+
+procedure TExplorerForm.SetRootFolder(const Path: string);
+begin
+  if (Path = 'root') then
+    TreeView1.RootFolder := rfDrives
+  else
+    TreeView1.RootFolderCustomPath := Path;
+end;
+
+procedure TExplorerForm.SetRootFolder(const RootFolder: TRootFolder);
+begin
+  TreeView1.RootFolder := RootFolder;
+end;
+
+procedure TExplorerForm.SearchAndSelectNodes(const Keyword: string);
+var
+  NameSpace: TNameSpace;
+
+begin
+  for var Node in TreeView1.VisibleNodes do
+  begin
+    if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+    begin
+      TreeView1.Selected[Node] := False;
+      if (Pos(Keyword, NameSpace.NameParseAddress) <> 0) then
+        TreeView1.Selected[Node] := True;
+    end;
+  end;
+end;
+
+procedure TExplorerForm.SearchBox1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if (Key = VK_RETURN) then
+  begin
+    if (SearchBox1.Text <> '') then
+      SearchAndSelectNodes(SearchBox1.Text);
+    TreeView1.SetFocus;
+  end;
+end;
+
+procedure TExplorerForm.ShowFileProperties(const Path: string);
+var
+  SHExeInfo: TShellExecuteInfo;
+  Flag: Cardinal;
+
+begin
+  if (TDirectory.Exists(Path)) then
+  begin
+    Flag := SEE_MASK_NOCLOSEPROCESS or SEE_MASK_INVOKEIDLIST or SEE_MASK_FLAG_NO_UI;
+    SHExeInfo.cbSize := SizeOf(SHExeInfo);
+    SHExeInfo.fMask  := Flag;
+    SHExeInfo.lpVerb := 'Properties';
+    SHExeInfo.Wnd    := Handle;
+    SHExeInfo.lpParameters := nil;
+    SHExeInfo.lpDirectory  := nil;
+    SHExeInfo.lpIDList     := nil;
+    SHExeInfo.lpFile := PChar(Path);
+    ShellExecuteEx(@SHExeInfo);
+  end;
+end;
+
+procedure TExplorerForm.ShowQuickAccessView;
+var
+  QAItem: TQuickAccessItem;
+  pQAItem: PQuickAccessItem;
+  List: TList<TQuickAccessItem>;
+  ListItem: TListItem;
+  FileInfo: TSHFileInfo;
+  Icon: TIcon;
+
+begin
+  QAImageList.BkColor := ListView1.Color;
+  ListView1.Clear;
+  List := TList<TQuickAccessItem>.Create;
+  GetQuickAccess(List);
+  try
+    for var i := 0 to List.Count - 1 do
+    begin
+      QAItem := List[i];
+      ListItem := ListView1.Items.Add;
+      ListItem.Caption := QAItem.Display;
+      New(pQAItem);
+      pQAItem^.Display  := QAItem.Display;
+      pQAItem^.FullPath := QAItem.FullPath;
+      ListItem.Data := Pointer(pQAItem);
+      Icon := TIcon.Create;
+      try
+        SHGetFileInfo(PChar(string(QAItem.FullPath)), 0, FileInfo, SizeOf(FileInfo),
+          SHGFI_SMALLICON or SHGFI_ICON or SHGFI_SHELLICONSIZE);
+        Icon.Handle := FileInfo.hIcon;
+        ListItem.ImageIndex := QAImageList.AddIcon(Icon);
+      finally
+        Icon.Free;
+      end;
+    end;
+  finally
+    List.Free;
+  end;
+end;
+
+procedure TExplorerForm.SubTree1TreeDblClick(Sender: TCustomVirtualExplorerTree;
+  Node: PVirtualNode; Button: TMouseButton; Point: TPoint);
+var
+  NameSpace: TNameSpace;
+
+begin
+  if (Sender as TVirtualExplorerTree).ValidateNamespace(Node, NameSpace) then
+  begin
+    if (TDirectory.Exists(NameSpace.NameParseAddress)) then
+      TreeView1.RootFolderCustomPath := NameSpace.NameParseAddress;
+  end;
+end;
+
+procedure TExplorerForm.Treeview1DragOver(Sender: TBaseVirtualTree; Source: TObject;
+  Shift: TShiftState; State: TDragState; Pt: TPoint; Mode: TDropMode;
+  var Effect: Integer; var Accept: Boolean);
+begin
+  if ((GetAsyncKeyState(VK_LBUTTON) and $8000) <> 0) then
+    FDragOverMouseButton := Integer(mbLeft);
+  if ((GetAsyncKeyState(VK_RBUTTON) and $8000) <> 0) then
+    FDragOverMouseButton := Integer(mbRight);
+  Accept := True;
+  TreeView1.RefreshTree(True);
+end;
+
+procedure TExplorerForm.Treeview1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  NameSpace: TNameSpace;
+  IsCtrlDown: Boolean;
+  Count: Integer;
+
+begin
+  Count := 0;
+  if (Key = VK_RETURN) then
+  begin
+    IsCtrlDown := GetAsyncKeyState(VK_CONTROL) and $8000 <> 0;
+    for var Node in TreeView1.SelectedNodes do
+    begin
+      Inc(Count);
+      if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      begin
+        if (TDirectory.Exists(NameSpace.NameParseAddress)) then
+        begin
+          if (IsCtrlDown) or (Count = 1) then
+            MainForm.CreateNewForm(NameSpace.NameParseAddress)
+          else
+            TreeView1.RootFolderCustomPath := NameSpace.NameParseAddress;
+        end else
+          FileOpen(NameSpace.NameParseAddress);
+      end;
+    end;
+  end else
+  if (Key = Ord('N')) and (ssCtrl in Shift) and (ssShift in Shift) then
+  begin
+    if (TreeView1.SelectedCount = 1) then
+    begin
+      var Node := TreeView1.GetFirstSelected;
+      TreeView1.Expanded[Node] := True;
+      if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+        CreateNewDirectory(NameSpace.NameParseAddress);
+    end else
+      CreateNewDirectory(TreeView1.RootFolderCustomPath);
+  end;
+end;
+
+procedure TExplorerForm.Treeview1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  MousePos: TPoint;
+
+begin
+  if (Button = mbRight) then
+  begin
+    if (TreeView1.GetFirstSelected = nil) then
+    begin
+      GetCursorPos(MousePos);
+      PopupMenu2.Popup(MousePos.X, MousePos.Y);
+    end;
+  end;
+end;
+
+procedure TExplorerForm.Treeview1RootChange(Sender: TCustomVirtualExplorerTree);
+var
+  Node: PVirtualNode;
+  NameSpace: TNameSpace;
+
+begin
+  MainForm.Caption := TreeView1.RootFolderCustomPath;
+  FExplorerHistory.Add(TreeView1.RootFolderCustomPath);
+  ExplorerCombobox1.Path := TreeView1.RootFolderCustomPath;
+  FExplorerHistory.State := hsNone;
+  Node := TreeView1.GetFirst;
+  if(Node <> nil) then
+  begin
+    if (TreeView1.ValidateNamespace(Node, NameSpace)) then
+      Caption := NameSpace.NameAddressbar;
+  end;
+end;
+
+procedure TExplorerForm.Treeview1TreeDblClick(Sender: TCustomVirtualExplorerTree;
+  Node: PVirtualNode; Button: TMouseButton; Point: TPoint);
+var
+  IsCtrlDown: Boolean;
+  NameSpace: TNameSpace;
+
+begin
+  IsCtrlDown := GetAsyncKeyState(VK_CONTROL) and $8000 <> 0;
+  for var Item in TreeView1.SelectedNodes do
+  begin
+    if (Treeview1.ValidateNamespace(Item, NameSpace)) then
+    begin
+      if (IsCtrlDown) then
+        MainForm.CreateNewForm(Namespace.NameParseAddress)
+      else
+      begin
+        if (TDirectory.Exists(NameSpace.NameParseAddress)) then
+        begin
+          TreeView1.RootFolderCustomPath := NameSpace.NameParseAddress;
+        end else
+          FileOpen(NameSpace.NameParseAddress);
+      end;
+    end;
+  end;
+end;
+
+procedure TExplorerForm.UpButtonClick(Sender: TObject);
+var
+  Path: string;
+
+begin
+  Path := ExcludeTrailingPathDelimiter(TreeView1.RootFolderCustomPath);
+  if (Path = '') or (MatchText(Path, GetLogicalDriveStrings)) then
+    Exit;
+  Path := TDirectory.GetParent(Path);
+  if (TDirectory.Exists(Path)) then
+    TreeView1.RootFolderCustomPath := Path;
+end;
+
+procedure TExplorerForm.WMSetText(var Msg: TMessage);
+const
+  DblQuote = '"';
+
+var
+  Command: string;
+
+begin
+  inherited;
+  Command := StringReplace(Caption, DblQuote, '', [rfReplaceAll]);
+  if (Command = 'mutex_test') then
+  begin
+    ShowMessage('aaaaaaaaaaaaaaaaaa');
+    MainForm.CreateNewForm(TRootFolder.rfDrives);
+  end;
+end;
+
+{ TExplorerHistory }
+
+procedure TExplorerHistory.Add(const Path: string);
+begin
+  if (FState <> hsNone) then
+    Exit;
+  if (Path = '') or (not TDirectory.Exists(Path)) then
+    Exit;
+  if (FIndex <> FHistory.Count - 1) then
+    Delete;
+  if (FHistory.Count > 0) and (FHistory[FHistory.Count - 1] = Path) then
+    Exit;
+  FHistory.Add(Path);
+  FIndex := FHistory.Count - 1;
+  FState := hsNone;
+end;
+
+function TExplorerHistory.Back: string;
+begin
+  if (FIndex > 0) then
+  begin
+    Dec(FIndex);
+    Result := FHistory[FIndex];
+    FState := hsBack;
+  end;
+end;
+
+constructor TExplorerHistory.Create;
+begin
+  FHistory := TStringList.Create;
+  FIndex := - 1;
+  FState := hsNone;
+end;
+
+procedure TExplorerHistory.Delete;
+begin
+  for var i := FHistory.Count - 1 downto FIndex + 1 do
+    FHistory.Delete(i);
+end;
+
+destructor TExplorerHistory.Destroy;
+begin
+  FHistory.Free;
+  inherited;
+end;
+
+function TExplorerHistory.GetCount: Integer;
+begin
+  Result := FHistory.Count;
+end;
+
+{
+function TExplorerHistory.GetHistory(const Index: Integer): string;
+begin
+  if (FHistory.Count - 1 >= Index) then
+    Result := FHistory[Index];
+end;
+}
+
+function TExplorerHistory.Next: string;
+begin
+  if (FIndex < FHistory.Count - 1) then
+  begin
+    Inc(FIndex);
+    Result := FHistory[FIndex];
+    FState := hsNext;
+  end;
+end;
+
+end.

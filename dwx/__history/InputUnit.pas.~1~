@@ -1,0 +1,25 @@
+unit InputUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Mask, Vcl.ExtCtrls;
+
+type
+  TInputForm = class(TForm)
+    LabeledEdit1: TLabeledEdit;
+  private
+    { Private éŒ¾ }
+  public
+    { Public éŒ¾ }
+  end;
+
+var
+  InputForm: TInputForm;
+
+implementation
+
+{$R *.dfm}
+
+end.

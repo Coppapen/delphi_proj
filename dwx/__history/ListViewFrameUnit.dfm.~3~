@@ -1,0 +1,115 @@
+object ListViewFrame: TListViewFrame
+  Left = 0
+  Top = 0
+  Width = 300
+  Height = 300
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Pitch = fpFixed
+  Font.Style = []
+  ParentFont = False
+  TabOrder = 0
+  OnEnter = FrameEnter
+  OnExit = FrameExit
+  OnResize = FrameResize
+  object AddressPanel: TPanel
+    Left = 0
+    Top = 0
+    Width = 300
+    Height = 20
+    Align = alTop
+    Enabled = False
+    TabOrder = 0
+    object Edit1: TEdit
+      Left = 1
+      Top = 1
+      Width = 298
+      Height = 23
+      Align = alTop
+      Color = clBackground
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWhite
+      Font.Height = -12
+      Font.Name = 'Segoe UI'
+      Font.Pitch = fpFixed
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+      Text = 'Edit1'
+    end
+  end
+  object SelectedStatusPanel: TPanel
+    Left = 0
+    Top = 20
+    Width = 300
+    Height = 22
+    Align = alTop
+    TabOrder = 1
+  end
+  object SearchPanel: TPanel
+    Left = 0
+    Top = 278
+    Width = 300
+    Height = 22
+    Align = alBottom
+    TabOrder = 2
+    Visible = False
+    object Label1: TLabel
+      Left = 1
+      Top = 1
+      Width = 34
+      Height = 20
+      Align = alLeft
+      Caption = 'Label1'
+      Layout = tlCenter
+      ExplicitHeight = 15
+    end
+    object Edit2: TEdit
+      Left = 35
+      Top = 1
+      Width = 264
+      Height = 20
+      Align = alClient
+      TabOrder = 0
+      Text = 'Edit2'
+      OnKeyDown = Edit2KeyDown
+      OnKeyUp = Edit2KeyUp
+      ExplicitHeight = 23
+    end
+  end
+  object TPanel
+    Left = 0
+    Top = 256
+    Width = 300
+    Height = 22
+    Align = alBottom
+    TabOrder = 3
+  end
+  object FileListView: TListView
+    Left = 0
+    Top = 42
+    Width = 300
+    Height = 214
+    Align = alClient
+    Columns = <
+      item
+        Caption = 'FileName'
+      end
+      item
+        Caption = 'SubText'
+      end>
+    ShowColumnHeaders = False
+    TabOrder = 4
+    ViewStyle = vsReport
+  end
+  object BookmarkMenu: TPopupMenu
+    Left = 72
+    Top = 136
+  end
+  object BookmarkSubMenu: TPopupMenu
+    Left = 184
+    Top = 136
+  end
+end

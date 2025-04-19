@@ -1,0 +1,316 @@
+﻿unit FileTransfer;
+
+interface
+
+uses
+  System.Classes, System.SysUtils, System.IOUtils, Vcl.Forms, Winapi.Windows;
+
+type
+  TCopyProgressEvent = procedure(Sender: TObject; FileName: string;
+    Percent: Integer) of object;
+  TOverwriteAction = (oaYes, oaNo, oaYesToAll, oaNoToAll, oaRename, oaCancel);
+  TOverwritePromptResult = record
+    Action: TOverwriteAction;
+    NewFileName: string;
+  end;
+  TOverwritePromptEvent = function(const SourceFile: string; var DestFile: string):
+    TOverwritePromptResult of object;
+
+  TCopyWorker = class(TThread)
+  private
+    FCancelled: Boolean;
+    FSourcePaths: TArray<string>;
+    FDestFolder: string;
+    FMoveMode: Boolean;
+    FOnProgress: TCopyProgressEvent;
+    FOnPrompOverwrite: TOverwritePromptEvent;
+    FTotalSize, FCopiedSize: Int64;
+    FUserOverwriteChoice: TOverwriteAction;
+    function CopyFileWithProgress(const Src, Dest: string): Boolean;
+    function ShouldOverwrite(const SrcFile: string; var DestFile: string): Boolean;
+    procedure DoProgress(FileName: string; Percent: Integer);
+    procedure CalculateTotalSize(const Path: string);
+    procedure CopyFolder(const SrcFolder, DestFolder: string);
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const SourcePaths: TArray<string>; DestFolder: string;
+      OnProgress: TCopyProgressEvent;
+      OnPromptOverwrite: TOverwritePromptEvent;
+      MoveMode: Boolean = False);
+    procedure CopyCancel;
+    property Cancelled: Boolean read FCancelled;
+  end;
+
+  TDeleteProgressEvent = procedure(Sender: TObject; FileName: string) of object;
+
+  TDeleteWorker = class(TThread)
+  private
+    FCancelled: Boolean;
+    FOnProgress: TDeleteProgressEvent;
+    FSourcePaths: TArray<string>;
+    function DeleteFolder(const Src: string): Boolean;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const SourcePaths: TArray<string>;
+      OnProgress: TDeleteProgressEvent);
+    property Cancelled: Boolean read FCancelled;
+  end;
+
+implementation
+
+{ TCopyWorker }
+
+procedure TCopyWorker.CalculateTotalSize(const Path: string);
+var
+  FileList: TArray<string>;
+  FileName: string;
+
+begin
+  if TDirectory.Exists(Path) then
+  begin
+    FileList := TDirectory.GetFiles(Path, '*', TSearchOption.soAllDirectories);
+    for FileName in FileList do
+      Inc(FTotalSize, TFile.GetSize(FileName));
+  end else
+  if FileExists(Path) then
+    Inc(FTotalSize, TFile.GetSize(Path));
+end;
+
+procedure TCopyWorker.CopyCancel;
+begin
+  FCancelled := True;
+  Terminate;
+end;
+
+function TCopyWorker.CopyFileWithProgress(const Src, Dest: string): Boolean;
+var
+  Buffer: array [0..4095] of Byte;
+  SrcStream, DestStream: TFileStream;
+  ReadBytes: Integer;
+
+begin
+  Result := False;
+  if not FileExists(Src) then
+    Exit;
+  SrcStream := TFileStream.Create(Src, fmOpenRead or fmShareDenyWrite);
+  try
+    DestStream := TFileStream.Create(Dest, fmCreate);
+    try
+      repeat
+        if Terminated then
+        begin
+          FCancelled := True;
+          Break;
+        end;
+        ReadBytes := SrcStream.Read(Buffer, SizeOf(Buffer));
+        DestStream.Write(Buffer, ReadBytes);
+        Inc(FCopiedSize, ReadBytes);
+        DoProgress(Src, Round(FCopiedSize * 100 / FTotalSize));
+      until ReadBytes = 0;
+      Result := True;
+    finally
+      DestStream.Free;
+    end;
+  finally
+    SrcStream.Free;
+  end;
+  if FCancelled then
+  begin
+    try
+      TFile.Delete(Dest);
+    except
+      Synchronize(procedure
+      begin
+        Application.MessageBox('コピーを中止をしましたが、ファイルの後処理に失敗しました',
+          '確認',  MB_OK);
+      end);
+    end;
+  end;
+end;
+
+procedure TCopyWorker.CopyFolder(const SrcFolder, DestFolder: string);
+var
+  Files: TArray<string>;
+  SubFolder, DestFile: string;
+  FileName: string;
+
+begin
+  if Terminated then
+  begin
+    FCancelled := True;
+    Exit;
+  end;
+  if not TDirectory.Exists(DestFolder) then
+    TDirectory.CreateDirectory(DestFolder);
+  Files := TDirectory.GetFiles(SrcFolder);
+  for FileName in Files do
+  begin
+    DestFile := IncludeTrailingPathDelimiter(DestFolder) + ExtractFileName(FileName);
+    if FileExists(DestFile) and Assigned(FOnPrompOverwrite) then
+    begin
+      if FileExists(DestFile) and not ShouldOverwrite(FileName, DestFile) then
+        Continue;
+    end;
+    if CopyFileWithProgress(FileName, DestFile) and FMoveMode then
+      TFile.Delete(FileName);
+  end;
+  for SubFolder in TDirectory.GetDirectories(SrcFolder) do
+    CopyFolder(SubFolder, IncludeTrailingPathDelimiter(DestFolder) + ExtractFileName(SubFolder));
+end;
+
+constructor TCopyWorker.Create(const SourcePaths: TArray<string>; DestFolder: string;
+  OnProgress: TCopyProgressEvent; OnPromptOverwrite: TOverwritePromptEvent;
+  MoveMode: Boolean);
+begin
+  inherited Create(True);
+  FreeOnTerminate := True;
+  FSourcePaths := SourcePaths;
+  FDestFolder := DestFolder;
+  FOnProgress := OnProgress;
+  FOnPrompOverwrite := OnPromptOverwrite;
+  FMoveMode := MoveMode;
+end;
+
+procedure TCopyWorker.DoProgress(FileName: string; Percent: Integer);
+begin
+  if Assigned(FOnProgress) then
+  begin
+    Synchronize(procedure begin
+      FOnProgress(Self, FileName, Percent);
+    end);
+  end;
+end;
+
+procedure TCopyWorker.Execute;
+var
+  Path, DestFile, DestFolder: string;
+
+begin
+  FCopiedSize := 0;
+  FTotalSize := 0;
+  FUserOverwriteChoice := TOverwriteAction.oaYes;
+  FCancelled := False;
+  for Path in FSourcePaths do
+    CalculateTotalSize(Path);
+  for Path in FSourcePaths do
+  begin
+    if Terminated then
+    begin
+      FCancelled := True;
+      Exit;
+    end;
+    if FileExists(Path) then
+    begin
+      DestFile := IncludeTrailingPathDelimiter(FDestFolder) + ExtractFileName(Path);
+      if FileExists(DestFile) and Assigned(FOnPrompOverwrite) then
+      begin
+        if FileExists(DestFile) and not ShouldOverwrite(Path, DestFile) then
+          Continue;
+      end;
+      if CopyFileWithProgress(Path, DestFile) and FMoveMode then
+        TFile.Delete(Path);
+    end else
+    if TDirectory.Exists(Path) then
+    begin
+      DestFolder := IncludeTrailingPathDelimiter(FDestFolder) + ExtractFileName(Path);
+      CopyFolder(Path, DestFolder);
+      if FMoveMode then
+        TDirectory.Delete(Path, True);
+    end;
+  end;
+end;
+
+function TCopyWorker.ShouldOverwrite(const SrcFile: string; var DestFile: string): Boolean;
+var
+  PromptResult: TOverwritePromptResult;
+  LocalDestFile: string;
+begin
+  case FUserOverwriteChoice of
+    oaYesToAll: Exit(True);
+    oaNoToAll: Exit(False);
+    oaCancel:
+      begin
+        Terminate;
+        Exit(False);
+      end;
+  end;
+  Result := True; // デフォルトでTrueにしといて、
+  if Assigned(FOnPrompOverwrite) then
+  begin
+    LocalDestFile := DestFile; // 同期の外で渡すためコピーしとく
+    Synchronize(procedure
+    begin
+      PromptResult := FOnPrompOverwrite(SrcFile, LocalDestFile);
+    end);
+    case PromptResult.Action of
+      oaYes:
+        Result := True;
+      oaNo:
+        Result := False;
+      oaYesToAll:
+        begin
+          FUserOverwriteChoice := oaYesToAll;
+          Result := True;
+        end;
+      oaNoToAll:
+        begin
+          FUserOverwriteChoice := oaNoToAll;
+          Result := False;
+        end;
+      oaCancel:
+        begin
+          FUserOverwriteChoice := oaCancel;
+          Terminate;
+          Result := False;
+        end;
+      oaRename:
+        begin
+          DestFile := PromptResult.NewFileName;
+          Result := True;
+        end;
+    end;
+  end;
+end;
+
+{ TDeleteWorker }
+
+constructor TDeleteWorker.Create(const SourcePaths: TArray<string>;
+  OnProgress: TDeleteProgressEvent);
+begin
+  FCancelled := False;
+  FOnProgress := OnProgress;
+  FSourcePaths := SourcePaths;
+end;
+
+function TDeleteWorker.DeleteFolder(const Src: string): Boolean;
+var
+  Files: TArray<string>;
+  FileName: string;
+  SubFolder: string;
+
+begin
+  if TDirectory.Exists(Src) then
+  begin
+    Files := TDirectory.GetFiles(Src);
+    for FileName in Files do
+    begin
+      TFile.Delete(FileName);
+      Synchronize(procedure
+      begin
+        FOnProgress(FileName);
+      end);
+    end;
+  end;
+  for SubFolder in TDirectory.GetDirectories(Src) do
+    DeleteFolder(SubFolder);
+end;
+
+procedure TDeleteWorker.Execute;
+begin
+  inherited;
+
+end;
+
+end.

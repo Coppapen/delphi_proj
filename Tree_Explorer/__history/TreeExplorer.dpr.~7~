@@ -1,0 +1,18 @@
+program TreeExplorer;
+
+uses
+  Vcl.Forms,
+  Vcl.Themes,
+  Vcl.Styles,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  SubUnit in 'SubUnit.pas' {SubForm};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  TStyleManager.TrySetStyle('Carbon');
+  Application.CreateForm(TMainForm, MainForm);
+  Application.Run;
+end.

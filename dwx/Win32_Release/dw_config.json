@@ -1,0 +1,71 @@
+﻿{
+    "Position": {
+        "Top": 149,
+        "Left": 520,
+        "Height": 891,
+        "Width": 1408
+    },
+    "CurrentDirs": {
+        "L": "C:\\Users\\coppepan\\Documents\\Delphi\\proj",
+        "R": "D:\\Dungeon Travellers 2\\Data"
+    },
+    "WindowConfig": {
+        "AddressBar": {
+            "Font": {
+                "Name": "Ricty Diminished",
+                "Size": 14
+            },
+            "Colors": {
+                "Background": -16777215,
+                "Text": -16777202
+            }
+        },
+        "ListView": {
+            "Font": {
+                "Name": "Ricty Diminished",
+                "Size": 12
+            },
+            "Colors": {
+                "Background": -16777215,
+                "Text": -16777202,
+                "SelectedItems": 16711680,
+                "UnderLine": 15780518
+            }
+        },
+        "SearchBox": {
+            "Font": {
+                "Name": "Ricty Diminished",
+                "Size": 12
+            },
+            "Colors": {
+                "Background": -16777215,
+                "Text": -16777202
+            }
+        },
+        "Width": 696
+    },
+    "TabSetConfig": {
+        "Font": {
+            "Name": "Ricty Diminished",
+            "Size": 12
+        },
+        "Colors": {
+            "Background": -16777215,
+            "Text": -16777208,
+            "SelectedColor": 15780518,
+            "UnselectedColor": -16777201,
+            "SelectedFontColor": 16711935
+        }
+    },
+    "HistoryMemoConfig": {
+        "Font": {
+            "Name": "Ricty Diminished",
+            "Size": 12
+        },
+        "Colors": {
+            "Background": -16777215,
+            "Text": -16777202
+        },
+        "Height": 320
+    }
+}

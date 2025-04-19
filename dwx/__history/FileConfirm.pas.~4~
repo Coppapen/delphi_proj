@@ -1,0 +1,149 @@
+unit FileConfirm;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
+
+type
+  TConfirmType = (ctReplace, ctSkip, ctAddUndereBar, ctRename, ctCancel);
+
+  TConfirmResult = record
+    ConfirmType: TConfirmType;
+    NewFileName: string;
+  end;
+
+  TConfirmForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Panel6: TPanel;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label7: TLabel;
+    Label8: TLabel;
+    Edit1: TEdit;
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure Edit1KeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  private
+    { Private êÈåæ }
+    FConfirmResult: TConfirmResult;
+    FIsRepeatSameOperation: Boolean;
+    FOriginalFileName: string;
+    FPanelIndex: Integer;
+    function KeyToIndex(const Key: Char): Integer;
+    procedure SetConfirmResult;
+    procedure SetPanelForcus(const Index: Integer);
+  public
+    { Public êÈåæ }
+    procedure Init(const SrcFile, DestFile: string);
+    property Result: TConfirmResult read FConfirmResult;
+    property IsRepeatSameOperation: Boolean read FIsRepeatSameOperation;
+  end;
+
+var
+  ConfirmForm: TConfirmForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TConfirmForm.Edit1KeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Dir: string;
+
+begin
+  if Key = VK_RETURN then
+  begin
+    Dir := ExtractFilePath(FOriginalFileName);
+    if FileExists(Dir + Edit1.Text) then
+      //
+    else
+    begin
+      SetConfirmResult;
+      Close;
+    end;
+  end;
+end;
+
+procedure TConfirmForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Shift = [] then
+  begin
+    case Key of
+      VK_DOWN: Inc(FPanelIndex);
+      VK_UP:   Inc(FPanelIndex);
+      VK_RETURN:
+        begin
+          SetConfirmResult;
+          Close;
+        end;
+      VK_ESCAPE:
+        begin
+          FConfirmResult.ConfirmType := ctCancel;
+          Close;
+        end;
+    end;
+    if (Key = VK_DOWN) or (Key = VK_UP) then
+    begin
+      if FPanelIndex < 1 then
+        FPanelIndex := 1
+      else
+      if FPanelIndex > 4 then
+        FPanelIndex := 4;
+      SetPanelForcus(FPanelIndex);
+    end;
+    case Key of
+      Ord('R'), Ord('S'), Ord('C'), Ord('F'):
+      begin
+        if FPanelIndex <> 4 then
+          SetPanelForcus(KeyToIndex(Char(Key)));
+      end;
+    end;
+  end;
+  if ssShift in Shift then
+  begin
+    case Key of
+      VK_RETURN:
+        begin
+          if FPanelIndex <> 3 then
+          begin
+            FIsRepeatSameOperation := True;
+            SetConfirmResult;
+            Close;
+          end;
+        end;
+    end;
+  end;
+end;
+
+procedure TConfirmForm.Init(const SrcFile, DestFile: string);
+begin
+
+end;
+
+function TConfirmForm.KeyToIndex(const Key: Char): Integer;
+begin
+
+end;
+
+procedure TConfirmForm.SetConfirmResult;
+begin
+
+end;
+
+procedure TConfirmForm.SetPanelForcus(const Index: Integer);
+begin
+
+end;
+
+end.

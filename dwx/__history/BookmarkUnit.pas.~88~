@@ -1,0 +1,177 @@
+unit BookmarkUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Menus, Vcl.Mask, Vcl.ComCtrls, Winapi.ShellAPI, System.IOUtils, System.UITypes;
+
+type
+  TBookmarkForm = class(TForm)
+    Button1: TButton;
+    Button2: TButton;
+    Button3: TButton;
+    Button4: TButton;
+    Button5: TButton;
+    LEdit1: TLabeledEdit;
+    LEdit2: TLabeledEdit;
+    LV1: TListView;
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Panel6: TPanel;
+    Panel7: TPanel;
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
+    procedure FormResize(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure LV1SelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+  private
+    { Private êÈåæ }
+    procedure DropFiles(var Msg: TMessage); message WM_DROPFILES;
+  public
+    { Public êÈåæ }
+  end;
+
+var
+  BookmarkForm: TBookmarkForm;
+
+implementation
+
+uses
+  MainUnit;
+
+{$R *.dfm}
+
+procedure TBookmarkForm.Button1Click(Sender: TObject);
+var
+  Bookmark: TBookmarkItem;
+
+begin
+  MainForm.ClearBookmarkList;
+  for var i := 0 to LV1.Items.Count - 1 do
+  begin
+    var Item := LV1.Items[i];
+    Bookmark.Command := Item.Caption;
+    Bookmark.Path    := Item.SubItems[0];
+    MainForm.AddBookmark(Bookmark);
+  end;
+  BookmarkForm.Close;
+end;
+
+procedure TBookmarkForm.Button2Click(Sender: TObject);
+begin
+  BookmarkForm.Close;
+end;
+
+procedure TBookmarkForm.Button3Click(Sender: TObject);
+begin
+  if not TDirectory.Exists(LEdit2.Text) then
+  begin
+    MessageDlg('ñ≥å¯Ç»ÉpÉXÇ≈Ç∑', mtError, [mbOK], 0);
+    Exit;
+  end;
+  for var i := 0 to LV1.items.Count - 1 do
+  begin
+    var Item := LV1.Items[i];
+    if Item.Caption = LEdit1.Text then
+    begin
+      MessageDlg('ä˘Ç…ìoò^Ç≥ÇÍÇƒÇ¢Ç‹Ç∑', mtError, [mbOK], 0);
+      Exit;
+    end;
+  end;
+  var Item := LV1.Items.Add;
+  Item.Caption := LEdit1.Text;
+  Item.SubItems.Add(LEdit2.Text);
+end;
+
+procedure TBookmarkForm.Button4Click(Sender: TObject);
+begin
+  if LV1.ItemIndex <> - 1 then
+    LV1.Items.Delete(LV1.ItemIndex);
+end;
+
+procedure TBookmarkForm.Button5Click(Sender: TObject);
+begin
+  if LV1.ItemIndex <> - 1 then
+  begin
+    for var i := 0 to LV1.Items.Count - 1 do
+    begin
+      if LV1.Items[i].Caption = LEdit1.Text then
+      begin
+        MessageDlg('ä˘Ç…ìoò^Ç≥ÇÍÇƒÇ¢Ç‹Ç∑', mtError, [mbOK], 0);
+        Exit;
+      end;
+    end;
+    var Index := LV1.ItemIndex;
+    LV1.Items[Index].Caption := LEdit1.Text;
+    LV1.Items[Index].SubItems[0] := LEdit2.Text;
+  end;
+end;
+
+procedure TBookmarkForm.DropFiles(var Msg: TMessage);
+var
+  FileName: array [0..255] of Char;
+
+begin
+  var Count := DragQueryFile(Msg.WParam, $FFFFFFFF, FileName, 255);
+  if Count > 1 then
+  begin
+    MessageDlg('ï°êîÉtÉ@ÉCÉãÇÕëIëÇ≈Ç´Ç‹ÇπÇÒ', mtError, [mbOK], 0);
+    Exit;
+  end;
+  DragQueryFile(Msg.WParam, 0, FileName, 255);
+  if not TDirectory.Exists(FileName) then
+  begin
+    MessageDlg('ÉtÉHÉãÉ_ÇÃÇ›Ç™ìoò^Ç≈Ç´Ç‹Ç∑', mtError, [mbOK], 0);
+    Exit;
+  end;
+  LEdit1.SetFocus;
+  LEdit2.Text := FileName;
+  DragFinish(Msg.WParam);
+end;
+
+procedure TBookmarkForm.FormResize(Sender: TObject);
+begin
+  LV1.Columns[0].Width := 100;
+  LV1.Columns[1].Width := LV1.Width - LV1.Columns[0].Width - 20;
+  LEdit1.Width := Panel6.Width - Panel7.Width - 35;
+end;
+
+procedure TBookmarkForm.FormShow(Sender: TObject);
+begin
+  DragAcceptFiles(Handle, True);
+  LV1.Items.Clear;
+  for var i := 0 to MainForm.BookmarkCount - 1 do
+  begin
+    var Bookmark := MainForm.GetBookmarkItem(i);
+    var Item := LV1.Items.Add;
+    Item.Caption := Bookmark.Command;
+    Item.SubItems.Add(Bookmark.Path);
+  end;
+  LEdit1.Text := '';
+  LEdit2.Text := '';
+end;
+
+procedure TBookmarkForm.LV1SelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  if Selected then
+  begin
+    LEdit1.Text := Item.Caption;
+    LEdit2.Text := Item.SubItems[0];
+  end else
+  begin
+    LEdit1.Text := '';
+    LEdit2.Text := '';
+  end;
+end;
+
+end.

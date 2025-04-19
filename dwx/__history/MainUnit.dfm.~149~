@@ -1,0 +1,296 @@
+object MainForm: TMainForm
+  Left = 0
+  Top = 0
+  Caption = '[ dwexp ] 2025.2.15'
+  ClientHeight = 501
+  ClientWidth = 804
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
+  Font.Style = []
+  KeyPreview = True
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnKeyDown = FormKeyDown
+  OnKeyPress = FormKeyPress
+  OnResize = FormResize
+  OnShow = FormShow
+  TextHeight = 15
+  object Panel_B: TPanel
+    Left = 0
+    Top = 332
+    Width = 804
+    Height = 150
+    Align = alBottom
+    BevelOuter = bvNone
+    TabOrder = 0
+    object Console: TMemo
+      Left = 0
+      Top = 0
+      Width = 804
+      Height = 150
+      Align = alClient
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Ricty Diminished'
+      Font.Pitch = fpVariable
+      Font.Style = []
+      Lines.Strings = (
+        '-- '#12503#12525#12497#12486#12451'---------------------------'
+        #12501#12449#12452#12523#21517'   : ColorSetUnit.pas'
+        #22580#25152'         : C:\Users\coppepan\Documents\Delphi\proj\DW_FIler\'
+        #12469#12452#12474'       : 4.3 KB ( 4,399 )'
+        #20316#25104#26085#26178'     : 2024'#24180'08'#26376'08'#26085' 21:18:07'
+        #26356#26032#26085#26178'     : 2024'#24180'08'#26376'29'#26085' 22:55:28'
+        #12450#12463#12475#12473#26085#26178' : 2024'#24180'08'#26376'29'#26085' 22:55:28'
+        '----------------------------------------')
+      ParentFont = False
+      TabOrder = 0
+    end
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Top = 482
+    Width = 804
+    Height = 19
+    Panels = <
+      item
+        Width = 500
+      end
+      item
+        Width = 50
+      end
+      item
+        Width = 50
+      end>
+  end
+  object Panel_T: TPanel
+    Left = 0
+    Top = 0
+    Width = 804
+    Height = 332
+    Align = alClient
+    TabOrder = 2
+    object Panel_R: TPanel
+      Left = 402
+      Top = 1
+      Width = 401
+      Height = 330
+      Align = alClient
+      TabOrder = 0
+      object Explorer_R: TVirtualExplorerTree
+        Left = 1
+        Top = 24
+        Width = 399
+        Height = 282
+        Active = True
+        Align = alClient
+        Colors.BorderColor = 15987699
+        Colors.DisabledColor = clGray
+        Colors.DropMarkColor = 15385233
+        Colors.DropTargetColor = 15385233
+        Colors.DropTargetBorderColor = 15385233
+        Colors.FocusedSelectionColor = 15385233
+        Colors.FocusedSelectionBorderColor = 15385233
+        Colors.GridLineColor = 15987699
+        Colors.HeaderHotColor = clBlack
+        Colors.HotColor = clBlack
+        Colors.SelectionRectangleBlendColor = 15385233
+        Colors.SelectionRectangleBorderColor = 15385233
+        Colors.SelectionTextColor = clBlack
+        Colors.TreeLineColor = 9471874
+        Colors.UnfocusedColor = clRed
+        Colors.UnfocusedSelectionColor = clFuchsia
+        Colors.UnfocusedSelectionBorderColor = clLime
+        ColumnDetails = cdUser
+        ColumnMenuItemCount = 8
+        DefaultNodeHeight = 17
+        DragHeight = 250
+        DragWidth = 150
+        FileObjects = [foFolders, foNonFolders]
+        FileSizeFormat = fsfExplorer
+        FileSort = fsFileType
+        Header.AutoSizeIndex = 0
+        Header.Height = 17
+        Header.Options = [hoAutoResize, hoColumnResize, hoDrag, hoShowSortGlyphs, hoVisible]
+        HintMode = hmHint
+        LineStyle = lsSolid
+        ParentColor = False
+        RootFolder = rfDesktop
+        TabOrder = 1
+        TabStop = True
+        TreeOptions.AutoOptions = [toAutoDropExpand, toAutoScrollOnExpand, toAutoTristateTracking, toAutoHideButtons, toAutoDeleteMovedNodes, toAutoChangeScale]
+        TreeOptions.PaintOptions = [toShowButtons, toShowTreeLines, toThemeAware, toUseBlendedImages]
+        TreeOptions.SelectionOptions = [toMultiSelect, toSiblingSelectConstraint]
+        TreeOptions.VETShellOptions = [toRightAlignSizeColumn, toContextMenus]
+        TreeOptions.VETSyncOptions = [toCollapseTargetFirst, toExpandTarget, toSelectTarget]
+        TreeOptions.VETMiscOptions = [toBrowseExecuteFolder, toBrowseExecuteFolderShortcut, toBrowseExecuteZipFolder, toExecuteOnDblClk]
+        TreeOptions.VETImageOptions = [toImages, toMarkCutAndCopy]
+        OnChange = Explorer_LChange
+        OnKeyDown = Explorer_LKeyDown
+        OnMouseDown = Explorer_LMouseDown
+        OnRootChange = Explorer_LRootChange
+        Columns = <
+          item
+            Position = 0
+            Text = 'Name'
+            Width = 10
+            ColumnDetails = cdFileName
+          end
+          item
+            Alignment = taRightJustify
+            Position = 1
+            Text = 'Size'
+            Width = 176
+            ColumnDetails = cdSize
+          end
+          item
+            Position = 2
+            Text = 'Modified'
+            Width = 218
+            ColumnDetails = cdModified
+          end>
+      end
+      object Edit_R: TEdit
+        Left = 1
+        Top = 1
+        Width = 399
+        Height = 23
+        Align = alTop
+        Enabled = False
+        TabOrder = 0
+        Text = 'Edit_R'
+      end
+      object Edit_RS: TEdit
+        Left = 1
+        Top = 306
+        Width = 399
+        Height = 23
+        Align = alBottom
+        TabOrder = 2
+        Visible = False
+      end
+    end
+    object Panel_L: TPanel
+      Left = 1
+      Top = 1
+      Width = 401
+      Height = 330
+      Align = alLeft
+      TabOrder = 1
+      object Explorer_L: TVirtualExplorerTree
+        Left = 1
+        Top = 24
+        Width = 399
+        Height = 282
+        Active = True
+        Align = alClient
+        Colors.BorderColor = 15987699
+        Colors.DisabledColor = clGray
+        Colors.DropMarkColor = 15385233
+        Colors.DropTargetColor = 15385233
+        Colors.DropTargetBorderColor = 15385233
+        Colors.FocusedSelectionColor = 15385233
+        Colors.FocusedSelectionBorderColor = 15385233
+        Colors.GridLineColor = 15987699
+        Colors.HeaderHotColor = clBlack
+        Colors.HotColor = clBlack
+        Colors.SelectionRectangleBlendColor = 15385233
+        Colors.SelectionRectangleBorderColor = 15385233
+        Colors.SelectionTextColor = clBlack
+        Colors.TreeLineColor = 9471874
+        Colors.UnfocusedColor = clGray
+        Colors.UnfocusedSelectionColor = clWhite
+        Colors.UnfocusedSelectionBorderColor = clFuchsia
+        ColumnDetails = cdUser
+        ColumnMenuItemCount = 8
+        DefaultNodeHeight = 17
+        DragHeight = 250
+        DragWidth = 150
+        FileObjects = [foFolders, foNonFolders]
+        FileSizeFormat = fsfExplorer
+        FileSort = fsFileType
+        Header.AutoSizeIndex = 0
+        Header.Height = 17
+        Header.Options = [hoAutoResize, hoColumnResize, hoDrag, hoShowSortGlyphs, hoVisible]
+        HintMode = hmHint
+        ParentColor = False
+        RootFolder = rfDesktop
+        TabOrder = 1
+        TabStop = True
+        TreeOptions.AutoOptions = [toAutoDropExpand, toAutoScrollOnExpand, toAutoTristateTracking, toAutoHideButtons, toAutoDeleteMovedNodes, toAutoChangeScale]
+        TreeOptions.PaintOptions = [toShowButtons, toShowRoot, toShowTreeLines, toThemeAware, toUseBlendedImages, toGhostedIfUnfocused, toFullVertGridLines]
+        TreeOptions.SelectionOptions = [toMultiSelect, toSiblingSelectConstraint]
+        TreeOptions.VETShellOptions = [toRightAlignSizeColumn, toContextMenus]
+        TreeOptions.VETSyncOptions = [toCollapseTargetFirst, toExpandTarget, toSelectTarget]
+        TreeOptions.VETMiscOptions = [toBrowseExecuteFolder, toBrowseExecuteFolderShortcut, toBrowseExecuteZipFolder, toExecuteOnDblClk]
+        TreeOptions.VETImageOptions = [toImages, toMarkCutAndCopy]
+        OnKeyDown = Explorer_LKeyDown
+        OnKeyUp = Explorer_LKeyUp
+        OnMouseDown = Explorer_LMouseDown
+        OnRootChange = Explorer_LRootChange
+        Columns = <
+          item
+            Position = 0
+            Text = 'Name'
+            Width = 128
+            ColumnDetails = cdFileName
+          end
+          item
+            Alignment = taRightJustify
+            Position = 1
+            Text = 'Size'
+            Width = 100
+            ColumnDetails = cdSize
+          end
+          item
+            Position = 2
+            Text = 'Modified'
+            Width = 150
+            ColumnDetails = cdModified
+          end>
+      end
+      object Edit_L: TEdit
+        Left = 1
+        Top = 1
+        Width = 399
+        Height = 23
+        Align = alTop
+        Enabled = False
+        TabOrder = 0
+        Text = 'Edit1'
+      end
+      object Edit_LS: TEdit
+        Left = 1
+        Top = 306
+        Width = 399
+        Height = 23
+        Align = alBottom
+        TabOrder = 2
+        Visible = False
+      end
+    end
+  end
+  object ProgressBar1: TProgressBar
+    Left = 248
+    Top = 240
+    Width = 130
+    Height = 17
+    TabOrder = 3
+  end
+  object PopupMenu1: TPopupMenu
+    AutoHotkeys = maManual
+    AutoLineReduction = maManual
+    Images = ImageList1
+    Left = 392
+    Top = 136
+  end
+  object ImageList1: TImageList
+    ColorDepth = cd32Bit
+    Left = 304
+    Top = 240
+  end
+end

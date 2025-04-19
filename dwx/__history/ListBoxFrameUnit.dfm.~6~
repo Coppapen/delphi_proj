@@ -1,0 +1,94 @@
+object ListBoxFrame: TListBoxFrame
+  Left = 0
+  Top = 0
+  Width = 300
+  Height = 300
+  TabOrder = 0
+  OnEnter = FrameEnter
+  OnExit = FrameExit
+  OnResize = FrameResize
+  object ListBox1: TListBox
+    Left = 0
+    Top = 42
+    Width = 300
+    Height = 214
+    Style = lbVirtualOwnerDraw
+    Align = alClient
+    ItemHeight = 15
+    TabOrder = 0
+    OnData = ListBox1Data
+    OnDrawItem = ListBox1DrawItem
+    OnEnter = ListBox1Enter
+    OnKeyDown = ListBox1KeyDown
+    OnKeyPress = ListBox1KeyPress
+    OnKeyUp = ListBox1KeyUp
+  end
+  object Panel1: TPanel
+    Left = 0
+    Top = 0
+    Width = 300
+    Height = 20
+    Align = alTop
+    TabOrder = 1
+    object Edit1: TEdit
+      Left = 1
+      Top = 1
+      Width = 298
+      Height = 23
+      Align = alTop
+      TabOrder = 0
+      Text = 'Edit1'
+    end
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 20
+    Width = 300
+    Height = 22
+    Align = alTop
+    TabOrder = 2
+  end
+  object Panel3: TPanel
+    Left = 0
+    Top = 278
+    Width = 300
+    Height = 22
+    Align = alBottom
+    TabOrder = 3
+    Visible = False
+    object Label1: TLabel
+      Left = 1
+      Top = 1
+      Width = 34
+      Height = 20
+      Align = alLeft
+      Caption = 'Label1'
+      Layout = tlCenter
+      ExplicitHeight = 15
+    end
+    object Edit2: TEdit
+      Left = 35
+      Top = 1
+      Width = 264
+      Height = 20
+      Align = alClient
+      TabOrder = 0
+      Text = 'Edit2'
+      OnKeyDown = Edit2KeyDown
+      OnKeyUp = Edit2KeyUp
+      ExplicitHeight = 23
+    end
+  end
+  object Panel4: TPanel
+    Left = 0
+    Top = 256
+    Width = 300
+    Height = 22
+    Align = alBottom
+    TabOrder = 4
+  end
+  object PopupMenu1: TPopupMenu
+    Left = 136
+    Top = 136
+  end
+end

@@ -1,0 +1,183 @@
+unit MainUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.JumpList, Vcl.ExtCtrls, System.Generics.Collections,
+  System.Generics.Defaults, System.Types, System.Win.ComObj, Winapi.ActiveX, Winapi.CommCtrl,
+  System.IOUtils, VirtualExplorerTree, Vcl.Themes, Vcl.Styles, System.Contnrs;
+
+const
+  QuickAccess = 'shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}';
+
+type
+  PQuickAccessItem = ^TQuickAccessItem;
+  TQuickAccessItem = record
+    Display : string;
+    FullPath: string;
+  end;
+
+  TMainForm = class(TForm)
+    TrayIcon1: TTrayIcon;
+    PopupMenu1: TPopupMenu;
+    N1: TMenuItem;
+    N2: TMenuItem;
+    JumpList1: TJumpList;
+    procedure N1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure N2Click(Sender: TObject);
+  private
+    { Private 宣言 }
+    FHotKeyID: Integer;
+    FFormList: TObjectList;
+    procedure SetHotKey;
+    procedure WMHotKey(var message: TMessage); message WM_HOTKEY;
+  public
+    { Public 宣言 }
+    function ExplorerFormCount: Integer;
+    procedure CreateNewForm(const Command: string); overload;
+    procedure CreateNewForm(const RootFolder: TRootFolder); overload;
+    procedure DeleteListItem(Form: TForm);
+  end;
+
+  // Utils
+  procedure GetQuickAccess(var List: TList<TQuickAccessItem>);
+
+var
+  MainForm: TMainForm;
+
+implementation
+
+uses
+  SubUnit;
+
+{$R *.dfm}
+
+procedure TMainForm.CreateNewForm(const Command: string);
+var
+  NewForm: TExplorerForm;
+
+begin
+  if (TDirectory.Exists(Command)) or (Command = 'root') then
+  begin
+    NewForm := TExplorerForm.Create(Self);
+    NewForm.SetRootFolder(Command);
+    NewForm.Show;
+    SetForegroundWindow(NewForm.Handle);
+  end;
+end;
+
+procedure TMainForm.CreateNewForm(const RootFolder: TRootFolder);
+var
+  NewForm: TExplorerForm;
+
+begin
+  NewForm := TExplorerForm.Create(Self);
+  NewForm.SetRootFolder(RootFolder);
+  NewForm.Show;
+  FFormList.Add(NewForm);
+  SetForegroundWindow(NewForm.Handle);
+end;
+
+procedure TMainForm.DeleteListItem(Form: TForm);
+begin
+  var i := FFormList.IndexOf(Form);
+  FFormList.Delete(i);
+end;
+
+function TMainForm.ExplorerFormCount: Integer;
+begin
+  Result := FFormList.Count;
+end;
+
+procedure TMainForm.FormCreate(Sender: TObject);
+var
+  List: TList<TQuickAccessItem>;
+  Item: TJumpListItem;
+
+begin
+  FFormList := TObjectList.Create;
+  with TrayIcon1 do
+  begin
+    Icon := Application.Icon;
+    Hint := ExtractFileName(ChangeFileExt(Application.ExeName, ''));
+  end;
+  SetHotKey;
+  if (ParamCount <> 0) then
+  begin
+    var Path := StringReplace(ParamStr(1), '"', '', [rfReplaceAll]);
+    CreateNewForm(Path.Trim);
+  end else
+    CreateNewForm(TRootFolder.rfDrives);
+
+  JumpList1.TaskList.Clear;
+  List := TList<TQuickAccessItem>.Create;
+  try
+    GetQuickAccess(List);
+    for var QAItem in List do
+      JumpList1.AddTask(QAItem.Display, QAItem.FullPath, '');//, QAItem.FullPath);
+  finally
+    List.Free;
+  end;
+  JumpList1.UpdateList;
+end;
+
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  FFormList.Free;
+  UnRegisterHotKey(Handle, 0);
+end;
+
+procedure TMainForm.N1Click(Sender: TObject);
+begin
+  CreateNewForm('root');
+end;
+
+procedure TMainForm.N2Click(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TMainForm.SetHotKey;
+begin
+  if not (RegisterHotKey(Handle, 0, MOD_SHIFT or MOD_CONTROL, Ord('E'))) then
+    MessageBox(Handle, 'ホットキーの登録に失敗しました', 'エラー', MB_ICONERROR);
+end;
+
+procedure TMainForm.WMHotKey(var message: TMessage);
+begin
+  if (Integer(Message.WParam) = FHotKeyID) then
+    CreateNewForm('root');
+end;
+
+// Utils
+
+procedure GetQuickAccess(var List: TList<TQuickAccessItem>);
+var
+  Shell : OleVariant;
+  Folder: OleVariant;
+  Items : OleVariant;
+  ItemCount: Integer;
+  QAItem: TQuickAccessItem;
+
+begin
+  CoInitialize(nil);
+  Shell  := CreateOleObject('Shell.Application');
+  Folder := Shell.NameSpace(OleVariant(QuickAccess));
+  Items  := Folder.Items;
+  ItemCount := Items.Count;
+  for var i := 0 to ItemCount - 1 do
+  begin
+    QAItem.Display  := Items.Item(i).Name;
+    QAItem.FullPath := Items.Item(i).Path;
+    List.Add(QAItem);
+  end;
+  Shell  := Unassigned;
+  Folder := Unassigned;
+  Items  := Unassigned;
+  CoUninitialize;
+end;
+
+end.

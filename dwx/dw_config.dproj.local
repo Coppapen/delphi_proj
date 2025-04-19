@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2023/08/26 13:24:58.000.818,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 19:50:15.000.742,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 19:50:52.000.299,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 20:14:58.000.607,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2024/08/06 20:35:08.000.972,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/04/10 21:39:00.000.890,=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/04/10 21:39:16.000.266,C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\MainUnit.pas=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/04/10 21:39:16.000.266,C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\MainUnit.dfm=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>2025/04/10 21:39:45.000.790,C:\Users\coppepan\Documents\Delphi\proj\dwx\dw_settings.dproj=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>2025/04/10 21:40:57.000.708,C:\Users\coppepan\Documents\Delphi\proj\dwx\ConfigUnit.pas=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\MainUnit.pas</Transaction>
+    <Transaction>2025/04/10 21:40:57.000.708,C:\Users\coppepan\Documents\Delphi\proj\dwx\ConfigUnit.dfm=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\MainUnit.dfm</Transaction>
+    <Transaction>2025/04/10 21:41:06.000.253,C:\Users\coppepan\Documents\Delphi\proj\dwx\dw_config.dproj=C:\Users\coppepan\Documents\Delphi\proj\dwx\dw_settings.dproj</Transaction>
+  </Transactions>
+</BorlandProject>

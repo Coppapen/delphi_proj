@@ -1,0 +1,197 @@
+unit ApplicationSettings;
+
+interface
+
+uses
+  System.SysUtils, Vcl.Forms, Vcl.Graphics, System.JSON.Serializers,
+  System.JSON, System.JSON.Types, System.Classes;
+
+type
+  TPosition = record
+    Top:    Integer;
+    Left:   Integer;
+    Height: Integer;
+    Width:  Integer;
+  end;
+
+  TFontInfo = record
+    Name: string;
+    Size: Integer;
+  end;
+
+  TEditColors = record
+    Background: TColor;
+    Text: TColor;
+  end;
+
+  TListViewColors = record
+    Background: TColor;
+    Text: TColor;
+    SelectedItems: TColor;
+    UnderLine: TColor;
+  end;
+
+  TAddressBarConfig = record
+    Font: TFontInfo;
+    Colors: TEditColors;
+  end;
+
+  TListViewConfig = record
+    Font: TFontInfo;
+    Colors: TListViewColors;
+  end;
+
+  TSearchBoxConfig = record
+    Font: TFontInfo;
+    Colors: TEditColors;
+  end;
+
+  THistoryMemoConfig = record
+    Font: TFontInfo;
+    Colors: TEditColors;
+    Height: Integer;
+  end;
+
+  TWindowConfig = record
+    AddressBar: TAddressBarConfig;
+    ListView: TListViewConfig;
+    SearchBox: TSearchBoxConfig;
+    Width: Integer;
+  end;
+
+  TTabSetConfig = record
+    Font: TFontInfo;
+  end;
+
+  TCurrentDirs = record
+    L: string;
+    R: string;
+  end;
+
+  TConfig = record
+    Position: TPosition;
+    CurrentDirs: TCurrentDirs;
+    WindowConfig: TWindowConfig;
+    HistoryMemoConfig: THistoryMemoConfig;
+  end;
+
+  TApplicationSettings = class(TObject)
+  private
+    FPosition: TPosition;
+    FCurrentDirs: TCurrentDirs;
+    FWindowConfig: TWindowConfig;
+    FHistoryMemoConfig: THistoryMemoConfig;
+  public
+    constructor Create;
+    procedure LoadFromFile(const FileName: string);
+    procedure SaveToFile(const FileName: string);
+    procedure SetHistoryMemoHeight(const Height: Integer);
+    procedure SetListViewWidth(const Width: Integer);
+    property Position: TPosition read FPosition write FPosition;
+    property CurrentDirs: TCurrentDirs read FCurrentDirs write FCurrentDirs;
+    property WindowConfig: TWindowConfig read FWindowConfig write FWindowConfig;
+    property HistoryMemoConfig: THistoryMemoConfig read FHistoryMemoConfig write FHistoryMemoConfig;
+  end;
+
+implementation
+
+{ TApplicationSettings }
+
+constructor TApplicationSettings.Create;
+begin
+  with FPosition do
+  begin
+    Top    := 0;
+    Left   := 0;
+    Height := 500;
+    Width  := 700;
+  end;
+  with FCurrentDirs do
+  begin
+    L := ExcludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName));
+    R := L;
+  end;
+  with FWindowConfig do
+  begin
+    AddressBar.Font.Name := 'ÇlÇr ÉSÉVÉbÉN';
+    AddressBar.Font.Size := 10;
+    AddressBar.Colors.Background := clWindow;
+    AddressBar.Colors.Text := clWindowText;
+    ListView.Font.Name := 'ÇlÇr ÉSÉVÉbÉN';
+    ListView.Font.Size := 10;
+    ListView.Colors.Background := clWindow;
+    ListView.Colors.Text := clWindowText;
+    ListView.Colors.SelectedItems := clWebSkyBlue;
+    ListView.Colors.UnderLine := clBlue;
+    SearchBox.Font.Name := 'ÇlÇr ÉSÉVÉbÉN';
+    SearchBox.Font.Size := 10;
+    SearchBox.Colors.Background := clWindow;
+    SearchBox.Colors.Text := clWindowText;
+    Width := 350;
+  end;
+  with FHistoryMemoConfig do
+  begin
+    Font.Name := 'ÇlÇr ÉSÉVÉbÉN';
+    Font.Size := 10;
+    Colors.Background := clWindow;
+    Colors.Text := clWindowText;
+    Height := 200;
+  end;
+end;
+
+procedure TApplicationSettings.LoadFromFile(const FileName: string);
+var
+  Json: TJsonSerializer;
+  Text: TStringList;
+  Config: TConfig;
+
+begin
+  Json := TJsonSerializer.Create;
+  Text := TStringList.Create;
+  try
+    Text.LoadFromFile(FileName, TEncoding.UTF8);
+    Config := Json.Deserialize<TConfig>(Text.Text);
+    FPosition := Config.Position;
+    FCurrentDirs := Config.CurrentDirs;
+    FWindowConfig := Config.WindowConfig;
+    FHistoryMemoConfig := Config.HistoryMemoConfig;
+  finally
+    Json.Free;
+    Text.Free;
+  end;
+end;
+
+procedure TApplicationSettings.SaveToFile(const FileName: string);
+var
+  Json: TJsonSerializer;
+  Text: TStringList;
+  Config: TConfig;
+
+begin
+  Json := TJsonSerializer.Create;
+  Text := TStringList.Create;
+  try
+    Config.Position := FPosition;
+    Config.CurrentDirs := FCurrentDirs;
+    Config.WindowConfig := FWindowConfig;
+    Config.HistoryMemoConfig := FHistoryMemoConfig;
+    Json.Formatting := TJsonFormatting.Indented;
+    Text.Text := Json.Serialize<TConfig>(Config);
+    Text.SaveToFile(FileName, TEncoding.UTF8);
+  finally
+    Json.Free;
+    Text.Free;
+  end;
+end;
+
+procedure TApplicationSettings.SetHistoryMemoHeight(const Height: Integer);
+begin
+  FHistoryMemoConfig.Height := Height;
+end;
+
+procedure TApplicationSettings.SetListViewWidth(const Width: Integer);
+begin
+  FWindowConfig.Width := Width;
+end;
+
+end.

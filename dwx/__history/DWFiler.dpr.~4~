@@ -1,0 +1,21 @@
+program DWFiler;
+
+uses
+  Vcl.Forms,
+  MainUnit in 'MainUnit.pas' {MainForm},
+  ColorSetUnit in 'ColorSetUnit.pas' {ColorSetForm},
+  InputUnit in 'InputUnit.pas' {InputForm},
+  RenameUnit in 'RenameUnit.pas' {RenameForm},
+  ExplorerUtils in 'ExplorerUtils.pas';
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.MainFormOnTaskbar := True;
+  Application.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TColorSetForm, ColorSetForm);
+  Application.CreateForm(TInputForm, InputForm);
+  Application.CreateForm(TRenameForm, RenameForm);
+  Application.Run;
+end.

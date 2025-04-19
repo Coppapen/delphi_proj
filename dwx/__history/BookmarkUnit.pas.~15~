@@ -1,0 +1,66 @@
+unit BookmarkUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Grids, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.Menus, Vcl.Mask;
+
+type
+  TBookmarkForm = class(TForm)
+    Panel1: TPanel;
+    Panel2: TPanel;
+    Panel3: TPanel;
+    Button1: TButton;
+    Button2: TButton;
+    Panel4: TPanel;
+    Panel5: TPanel;
+    Button4: TButton;
+    Button3: TButton;
+    Button5: TButton;
+    Panel6: TPanel;
+    Panel7: TPanel;
+    LabeledEdit2: TLabeledEdit;
+    LabeledEdit1: TLabeledEdit;
+    procedure SG1MouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure FormResize(Sender: TObject);
+  private
+    { Private éŒ¾ }
+    FCol: Integer;
+    FRow: Integer;
+  public
+    { Public éŒ¾ }
+  end;
+
+var
+  BookmarkForm: TBookmarkForm;
+
+implementation
+
+{$R *.dfm}
+
+procedure TBookmarkForm.FormResize(Sender: TObject);
+begin
+  LabeledEdit1.Width := Panel6.Width - Panel7.Width - 35;
+end;
+
+procedure TBookmarkForm.SG1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  MousePos: TPoint;
+
+begin
+  if Button = mbRight then
+  begin
+    SG1.MouseToCell(X, Y, FCol, FRow);
+    if (FCol >= 0) and (FRow >= 0) then
+    begin
+      GetCursorPos(MousePos);
+      PopupMenu1.Popup(MousePos.X, MousePos.Y);
+    end;
+  end;
+end;
+
+end.

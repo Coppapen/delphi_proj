@@ -1,0 +1,39 @@
+unit MainUnit;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs;
+
+type
+  TForm1 = class(TForm)
+  private
+    { Private éŒ¾ }
+  public
+    { Public éŒ¾ }
+  protected
+    procedure WMApp100(var Message: TMessage); message WM_APP+100;
+    procedure WMApp110(var Message: TMessage); message WM_APP+110;
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+{ TForm1 }
+
+procedure TForm1.WMApp100(var Message: TMessage);
+begin
+
+end;
+
+procedure TForm1.WMApp110(var Message: TMessage);
+begin
+
+end;
+
+end.

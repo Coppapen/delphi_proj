@@ -1,0 +1,370 @@
+unit ExplorerUtils;
+
+interface
+
+uses
+  System.Classes,
+  System.SysUtils,
+  System.Types,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Winapi.Windows,
+  Winapi.ShellAPI,
+  System.Generics.Collections, System.Generics.Defaults,
+  System.JSON, System.json.Serializers, System.JSON.Types;
+
+const
+  UnusableFileName: array [0..24] of string = (
+    'COM0','COM1','COM2','COM3','COM4','COM5','COM6','COM7','COM8','COM9',
+    'LPT0','LPT1','LPT2','LPT3','LPT4','LPT5','LPT6','LPT7','LPT8','LPT9',
+    'CON','PRN','AUX','NUL','CLOCK$');
+
+  UnusableChar = '<>|:*?\/';
+
+type
+  TApplicationPosition = record
+    Top   : Integer;
+    Left  : Integer;
+    Height: Integer;
+    Width : Integer;
+  end;
+
+  TExplorerColors = record
+    // フォーカス時
+    FocusedSelectionBorderColor: TColor;   // 選択アイテムの境界線
+    FocusedSelectionColor: TColor;         // 選択アイテムの背景色
+    FocusedSelectionTextColor: TColor;     // 選択アイテムの文字色
+    // 非フォーカス時
+    UnfocusedSelectionBorderColor: TColor; // 選択アイテムの境界線
+    UnfocusedSelectionColor: TColor;       // 選択アイテムの背景色
+    UnfocusedSelectionTextColor: TColor;   // 選択アイテムの文字色
+    // エクスプローラ背景色
+    FocusedBackgroundColor: TColor;
+    UnfocusedBackgroundColor: TColor;
+  end;
+
+  TExplorerSettings = record
+    RootPath: string;
+    Width: Integer;
+  end;
+
+  TOtherSettings = record
+    IsShowHiddenFiles: Boolean;
+    IsShowHorizontalGridLines: Boolean;
+    IsShowVerticalGridLines: Boolean;
+  end;
+
+  TOverallSettings = record
+    ApplicationPosition : TApplicationPosition;
+    ExplorerColors: TExplorerColors;
+    ExplorerSettings1: TExplorerSettings;
+    ExplorerSettings2: TExplorerSettings;
+    ExplorerFont: TFont;
+    ConsoleFont: TFont;
+    OtherSettings: TOtherSettings;
+  end;
+
+  TApplicationSettings = record
+  public
+    Position: TApplicationPosition;
+    ExplorerColors: TExplorerColors;
+    ExplorerSettings1: TExplorerSettings;
+    ExplorerSettings2: TExplorerSettings;
+    ExplorerFont: TFont;
+    ConsoleFont: TFont;
+    OtherSettings: TOtherSettings;
+    class operator Initialize(out ADest: TApplicationSettings);
+    class operator Finalize(var ADest: TApplicationSettings);
+    procedure LoadFromFile(const FileName: string);
+    procedure SaveToFile(const FileName: string);
+  end;
+
+  TBookmarkItem = record
+    Command: string;
+    Path: string;
+  end;
+
+  TBookmarkList = class(TObject)
+  private
+    FBookmarkList: TList<TBookmarkItem>;
+    function GetCount: Integer;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Add(Item: TBookmarkItem): Boolean;
+    function CommandExists(CommandName: string): Boolean;
+    function Delete(Item: TBookmarkItem): Boolean;
+    function IndexOf(Item: TBookmarkItem): Integer;
+    function Item(Index: Integer): TBookmarkItem;
+    function Replace(OldItem, NewItem: TBookmarkItem): Boolean;
+    procedure Clear;
+    procedure LoadFromFile(const FileName: string);
+    procedure SaveToFile(const FileName: string);
+    property Count: Integer read GetCount;
+  end;
+
+function GetNetworkShares(const NetworkAddress: string): TStringDynArray;
+
+implementation
+
+function GetNetworkShares(const NetworkAddress: string): TStringDynArray;
+var
+  NetResource: TNetResource;
+  Buffer: array [0..1023] of TNetResource;
+  BufferSize, Entries: DWORD;
+  EnumHandle: THandle;
+
+begin
+  var ShareList := TStringList.Create;
+  try
+    FillChar(NetResource, SizeOf(NetResource), 0);
+    NetResource.dwScope := RESOURCE_GLOBALNET;
+    NetResource.dwType := RESOURCETYPE_DISK;
+    NetResource.dwDisplayType := RESOURCEDISPLAYTYPE_SHARE;
+    NetResource.dwUsage := RESOURCEUSAGE_CONTAINER;
+    NetResource.lpRemoteName := PChar(NetworkAddress);
+    if WNetOpenEnum(RESOURCE_GLOBALNET, RESOURCETYPE_DISK, 0, @NetREsource, EnumHandle) = NO_ERROR then
+    try
+      BufferSize := SizeOf(Buffer);
+      Entries := DWORD(-1);
+      while WNetEnumResource(EnumHandle, Entries, @Buffer, BufferSize) = NO_ERROR do
+      begin
+        for var i := 0 to Entries - 1 do
+        begin
+          if Buffer[i].dwDisplayType = RESOURCEDISPLAYTYPE_SHARE then
+            ShareList.Add(Buffer[i].lpRemoteName);
+        end;
+      end;
+    finally
+      WNetCloseEnum(EnumHandle);
+    end;
+    Result := ShareList.ToStringArray;
+  finally
+    ShareList.Free;
+  end;
+end;
+
+{ TBookmarkList }
+
+function TBookmarkList.Add(Item: TBookmarkItem): Boolean;
+begin
+  if CommandExists(Item.Command) then
+    Exit(False);
+  FBookmarkList.Add(Item);
+  Result := True;
+end;
+
+procedure TBookmarkList.Clear;
+begin
+  FBookmarkList.Clear;
+end;
+
+function TBookmarkList.CommandExists(CommandName: string): Boolean;
+begin
+  Result := False;
+  for var i := 0 to FBookmarkList.Count - 1 do
+  begin
+    if FBookmarkList[i].Command = CommandName then
+      Exit(True);
+  end;
+end;
+
+constructor TBookmarkList.Create;
+begin
+  FBookmarkList := TList<TBookmarkItem>.Create;
+end;
+
+function TBookmarkList.Delete(Item: TBookmarkItem): Boolean;
+begin
+  var Index := IndexOf(Item);
+  if Index = - 1 then
+    Exit(False);
+  FBookmarkList.Delete(Index);
+  Result := True;
+end;
+
+destructor TBookmarkList.Destroy;
+begin
+  FBookmarkList.Free;
+  inherited;
+end;
+
+function TBookmarkList.GetCount: Integer;
+begin
+  Result := FBookmarkList.Count;
+end;
+
+function TBookmarkList.IndexOf(Item: TBookmarkItem): Integer;
+begin
+  Result := FBookmarkList.IndexOf(Item);
+end;
+
+function TBookmarkList.Item(Index: Integer): TBookmarkItem;
+begin
+  Result := FBookmarkList[Index];
+end;
+
+procedure TBookmarkList.LoadFromFile(const FileName: string);
+var
+  List: TStringList;
+  JSONValue: TJSONValue;
+  JSONArray: TJSONArray;
+  JSONObject: TJSONObject;
+  Item: TBookmarkItem;
+
+begin
+  List := TStringList.Create;
+  try
+    List.LoadFromFile(FileName);
+    JSONValue := TJSONObject.ParseJSONValue(List.Text);
+    JSONArray := JSONValue.GetValue<TJSONArray>('Bookmarks');
+    for var i := 0 to JSONArray.Count - 1 do
+    begin
+      JSONObject := JSONArray.Items[i] as TJSONObject;
+      Item.Command := JSONObject.GetValue<string>('Command');
+      Item.Path := JSONObject.GetValue<string>('Path');
+      FBookmarkList.Add(Item);
+    end;
+  finally
+    List.Free;
+  end;
+end;
+
+function TBookmarkList.Replace(OldItem, NewItem: TBookmarkItem): Boolean;
+
+  function ReplaceCheck(const CommandName: string; Index: Integer): Boolean;
+  begin
+    Result := True;
+    for var i := 0 to FBookmarkList.Count - 1 do
+    begin
+      if i = Index then
+        Continue;
+      if CommandName = FBookmarkList[i].Command then
+        Exit(False);
+    end;
+  end;
+
+begin
+  var Index := IndexOf(OldItem);
+  if (Index = - 1) or not ReplaceCheck(NewItem.Command, Index) then
+    Exit(False);
+  FBookmarkList[Index] := NewItem;
+  Result := True;
+end;
+
+procedure TBookmarkList.SaveToFile(const FileName: string);
+var
+  js: TJsonSerializer;
+  s: string;
+  txt: TStringList;
+
+begin
+  js := TJsonSerializer.Create;
+  txt := TStringList.Create;
+  try
+    js.formatting := TJsonFormatting.Indented;
+    s := JS.Serialize<TList<TBookmarkItem>>(FBookmarkList);
+    {
+      TList をシリアライズすると FListHelper と FComparer というキーが
+      デフォルトになってしまうため文字列を置換し変更する
+    }
+    s := StringReplace(S, 'FListHelper', 'Bookmarks', []);
+    s := StringReplace(S, ',' + sLinebreak + '    "FComparer": {}', '', []);
+    txt.Text := s;
+    txt.SaveToFile(FileName);
+  finally
+    js.Free;
+    txt.Free;
+  end;
+end;
+
+{ TApplicationSettings }
+
+class operator TApplicationSettings.Finalize(var ADest: TApplicationSettings);
+begin
+  ADest.ExplorerFont.Free;
+  ADest.ConsoleFont.Free;
+end;
+
+class operator TApplicationSettings.Initialize(out ADest: TApplicationSettings);
+begin
+  ADest.Position.Top := 0;
+  ADest.Position.Left := 0;
+  ADest.Position.Height := 500;
+  ADest.Position.Width := 700;
+  ADest.ExplorerColors.FocusedSelectionBorderColor := clBlue;
+  ADest.ExplorerColors.FocusedSelectionColor := clBlue;
+  ADest.ExplorerColors.FocusedSelectionTextColor := clWhite;
+  ADest.ExplorerColors.UnfocusedSelectionBorderColor := clBlue;
+  ADest.ExplorerColors.UnfocusedSelectionColor := clBlue;
+  ADest.ExplorerColors.UnfocusedSelectionTextColor := clWhite;
+  ADest.ExplorerColors.FocusedBackgroundColor := clwhite;
+  ADest.ExplorerColors.UnfocusedBackgroundColor := clwhite;
+  ADest.ExplorerFont := TFont.Create;
+  ADest.ExplorerFont.Name := 'ＭＳ ゴシック';
+  ADest.ExplorerFont.Size := 9;
+  ADest.ConsoleFont := TFont.Create;
+  ADest.ConsoleFont.Name := 'ＭＳ ゴシック';
+  ADest.ConsoleFont.Size := 9;
+  ADest.ExplorerSettings1.RootPath := ExtractFilePath(Application.ExeName);
+  ADest.ExplorerSettings1.Width := 250;
+  ADest.ExplorerSettings2.RootPath := ExtractFilePath(Application.ExeName);
+  ADest.ExplorerSettings2.Width := 250;
+  ADest.OtherSettings.IsShowHiddenFiles := False;
+  ADest.OtherSettings.IsShowHorizontalGridLines := True;
+  ADest.OtherSettings.IsShowVerticalGridLines := True;
+end;
+
+procedure TApplicationSettings.LoadFromFile(const FileName: string);
+var
+  st: TOverallSettings;
+  js: TJsonSerializer;
+  txt: TStringList;
+
+begin
+  js := TJsonSerializer.Create;
+  txt := TStringList.Create;
+  try
+    txt.LoadFromFile(FileName);
+    st := Js.Deserialize<TOverallSettings>(txt.Text);
+  finally
+    js.Free;
+    txt.Free;
+  end;
+  Position := st.ApplicationPosition;
+  ExplorerColors := st.ExplorerColors;
+  ExplorerSettings1 := st.ExplorerSettings1;
+  ExplorerSettings2 := st.ExplorerSettings2;
+  ExplorerFont := st.ExplorerFont;
+  ConsoleFont := st.ConsoleFont;
+  OtherSettings := st.OtherSettings;
+end;
+
+procedure TApplicationSettings.SaveToFile(const FileName: string);
+var
+  st: TOverallSettings;
+  js: TJsonSerializer;
+  txt: TStringList;
+
+begin
+  st.ApplicationPosition := Position;
+  st.ExplorerColors := ExplorerColors;
+  st.ExplorerSettings1 := ExplorerSettings1;
+  st.ExplorerSettings2 := ExplorerSettings2;
+  st.ExplorerFont := ExplorerFont;
+  st.ConsoleFont := ConsoleFont;
+  st.OtherSettings := OtherSettings;
+  js := TJsonSerializer.Create;
+  txt := TStringList.Create;
+  try
+    js.Formatting := TJsonFormatting.Indented;
+    var json := js.Serialize<TOverallSettings>(st);
+    txt.Text := json;
+    txt.SaveToFile(FileName);
+  finally
+    js.Free;
+    txt.Free;
+  end;
+end;
+
+end.
