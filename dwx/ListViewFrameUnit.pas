@@ -366,7 +366,7 @@ var
 begin
   p := StringReplace(ExcludeTrailingPathDelimiter(Path), '\\', '', []);
   Dirs := SplitString(p, '\');
-  Result := string.Join(Delimiter, Dirs);
+  Result := string.Join(Delimiter, Dirs) + '  ';
 end;
 
 procedure TListViewFrame.AddTab(const TabInfo: TTabInfo);
@@ -708,6 +708,7 @@ begin
   InputForm.Left := p.X;
   InputForm.Top  := p.Y;
   InputForm.ShowModal;
+  SetImeToAlphabetNumeric(Self.Handle);
   if InputForm.IsCancel then
     Exit;
   NewDirName := InputForm.InputText;
@@ -732,7 +733,6 @@ begin
         [NewDirName]));
     end;
   end;
-  SetImeToAlphabetNumeric(Self.Handle);
 end;
 
 function TListViewFrame.CurrentLineItemPath: string;
@@ -1400,6 +1400,8 @@ begin
   InputForm.Left := p.X;
   InputForm.Top  := p.Y;
   InputForm.ShowModal;
+  if InputForm.IsCancel then
+    Exit;
   NewFileName := InputForm.InputText;
   Path := FCurrentDirectory;
   FileName := NewFileName;
@@ -1544,12 +1546,13 @@ begin
   InputForm.Left := p.X;
   InputForm.Top  := p.Y;
   InputForm.ShowModal;
+  NewName := InputForm.InputText;
+  SetImeToAlphabetNumeric(Self.Handle);
   if InputForm.IsCancel then
   begin
     MainForm.AddOperationHistory(Format('リネームがキャンセルされました [ %s ]', [SrcFile]));
     Exit;
   end;
-  NewName := InputForm.InputText;
   if DoFileOperation(SrcFile, DirName + NewName, foFileRename) then
   begin
     Reload;
@@ -1559,7 +1562,6 @@ begin
     MainForm.AddOperationHistory(Format('リネームしました [ %s ]', [SrcFile]));
   end else
     MainForm.AddOperationHistory(Format('リネームに失敗しました [ %s ]', [SrcFile]));
-  SetImeToAlphabetNumeric(Self.Handle);
 end;
 
 procedure TListViewFrame.ScrollToItem(const ItemIndex: Integer);

@@ -5,30 +5,31 @@ object InputForm: TInputForm
   BorderStyle = bsToolWindow
   Caption = 'InputForm'
   ClientHeight = 60
-  ClientWidth = 419
+  ClientWidth = 434
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  OnShow = FormShow
   TextHeight = 15
-  object LabeledEdit1: TLabeledEdit
-    Left = 9
+  object Edit1: TLabeledEdit
+    Left = 7
     Top = 25
-    Width = 400
-    Height = 25
-    EditLabel.Width = 67
+    Width = 420
+    Height = 29
+    EditLabel.Width = 26
     EditLabel.Height = 15
-    EditLabel.Caption = 'LabeledEdit1'
+    EditLabel.Caption = 'Edit1'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -13
+    Font.Height = -16
     Font.Name = 'Segoe UI'
     Font.Style = []
     ParentFont = False
     TabOrder = 0
     Text = ''
-    OnKeyDown = LabeledEdit1KeyDown
+    OnKeyDown = Edit1KeyDown
   end
 end

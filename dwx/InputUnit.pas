@@ -8,9 +8,10 @@ uses
 
 type
   TInputForm = class(TForm)
-    LabeledEdit1: TLabeledEdit;
-    procedure LabeledEdit1KeyDown(Sender: TObject; var Key: Word;
+    Edit1: TLabeledEdit;
+    procedure Edit1KeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
+    procedure FormShow(Sender: TObject);
   private
     { Private êÈåæ }
     FIsCancel: Boolean;
@@ -29,20 +30,39 @@ implementation
 
 {$R *.dfm}
 
+procedure TInputForm.FormShow(Sender: TObject);
+var
+  s: string;
+  p: Integer;
+
+begin
+  s := Edit1.Text;
+  p := s.LastIndexOf('.');
+  if (p <> - 1) and (p <> 0) then
+  begin
+    Edit1.SelStart := p;
+    Edit1.SelLength := 0;
+  end else
+  begin
+    Edit1.SelStart := Length(Edit1.Text);
+    Edit1.SelLength := 0;
+  end;
+end;
+
 function TInputForm.GetText: string;
 begin
-  Result := LabeledEdit1.Text;
+  Result := Edit1.Text;
 end;
 
 procedure TInputForm.Init(const ACaption, APrompt, ADefault: string);
 begin
   InputForm.Caption := ACaption;
-  LabeledEdit1.EditLabel.Caption := APrompt;
-  LabeledEdit1.Text := ADefault;
+  Edit1.EditLabel.Caption := APrompt;
+  Edit1.Text := ADefault;
   FIsCancel := False;
 end;
 
-procedure TInputForm.LabeledEdit1KeyDown(Sender: TObject; var Key: Word;
+procedure TInputForm.Edit1KeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   case Key of
