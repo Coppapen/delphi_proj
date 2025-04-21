@@ -43,7 +43,7 @@ type
   public
     { Public êÈåæ }
     procedure AddOperationHistory(const Text: string);
-    procedure GoToBookmarkInUnfocusedFrame(const Path: string);
+    procedure GoToPathInUnfocusedFrame(const Path: string; IsAddTab: Boolean = False);
     procedure ReloadUnfocusedFrame;
     procedure ShowFileProperty(const FileName: string);
   end;
@@ -197,7 +197,7 @@ begin
     Result := Frame_L;
 end;
 
-procedure TMainForm.GoToBookmarkInUnfocusedFrame(const Path: string);
+procedure TMainForm.GoToPathInUnfocusedFrame(const Path: string; IsAddTab: Boolean);
 var
   TabInfo: TTabInfo;
   Frame: TListViewFrame;
@@ -206,7 +206,10 @@ begin
   Frame := GetUnfocusedFrame;
   TabInfo.Path := Path;
   TabInfo.ItemIndex := Frame.TabSet.TabIndex;
-  Frame.UpdateTab(TabInfo);
+  if IsAddTab then
+    Frame.AddTab(TabInfo)
+  else
+    Frame.UpdateTab(TabInfo);
   Frame.ChangeDirectory(Path);
 end;
 

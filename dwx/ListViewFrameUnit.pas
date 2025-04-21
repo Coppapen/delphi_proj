@@ -150,8 +150,8 @@ type
     FIsFilteringItems: Boolean;
     FFileList: TList<TDataListItem>;
     FIsFocused: Boolean;
-    FIsShowBookmarksInOtherWindow: Boolean;
     FIsShowHiddenFiles: Boolean;
+    FKeyState: TShiftState;
     FListItemsSelected: TArray<Boolean>;
     FListViewColors: TListViewColors;
     FSelectedItems: TList<TDataListItem>;
@@ -207,7 +207,6 @@ type
     procedure ScrollToItem(const ItemIndex: Integer);
     procedure SelectItem(const ItemIndex: Integer);
     procedure ShowBookmarks;
-    procedure ShowBookmarksInOtherWindow;
     procedure ShowContextMenu;
     procedure ShowCreateNewFileMenu;
     procedure ShowFilteringBox;
@@ -408,12 +407,12 @@ begin
   Path := TMenuItem(Sender).Hint;
   TabInfo.Path := Path;
   TabInfo.ItemIndex := TabSet.TabIndex;
-  if not FIsShowBookmarksInOtherWindow then
+  if FKeyState = [] then
   begin
     UpdateTab(TabInfo);
     ChangeDirectory(Path);
   end else
-    MainForm.GoToBookmarkInUnfocusedFrame(Path);
+    MainForm.GoToPathInUnfocusedFrame(Path, FKeyState = [ssCtrl, ssShift]);
 end;
 
 procedure TListViewFrame.BookmarksToPopupMenu(const Collection: TBookmarkCollection;
@@ -1012,6 +1011,7 @@ end;
 procedure TListViewFrame.FileListViewKeyDown(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
+  FKeyState := Shift;
   if Shift = [] then
   begin
     // ‚±‚±‚Å‚Í VK_TAB ‚ðƒLƒƒƒbƒ`‚Å‚«‚È‚¢‚Ì‚Å
@@ -1063,7 +1063,8 @@ begin
   begin
     case Key of
       Ord('F'): ShowFilteringBox;
-      Ord('J'): ShowBookmarksInOtherWindow;
+      Ord('H'): ShowHistory;
+      Ord('J'): ShowBookmarks;
       Ord('P'): CopyPathToClipboard;
     end;
   end;
@@ -1077,6 +1078,8 @@ begin
   if Shift = [ssCtrl, ssShift] then
   begin
     case Key of
+      Ord('H'): ShowHistory;
+      Ord('J'): ShowBookmarks;
       Ord('N'): CreateNewDirectory;
       Ord('P'): CopyDirectoryPathToClipboard;
       Ord('S'): ChangeShowHiddenFiles;
@@ -1198,8 +1201,13 @@ var
 begin
   Path := TMenuItem(Sender).Hint;
   TabInfo.Path := Path;
-  TabInfo.ItemIndex := 0;
-  ChangeDirectory(Path);
+  TabInfo.ItemIndex := TabSet.TabIndex;
+  if FKeyState = [] then
+  begin
+    UpdateTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+    MainForm.GoToPathInUnfocusedFrame(Path, FKeyState = [ssCtrl, ssShift]);
 end;
 
 procedure TListViewFrame.IncrementalSearch(const Keyword: string);
@@ -1447,6 +1455,8 @@ var
   TabInfo: TTabInfo;
 
 begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
   Path := CurrentLineItemPath;
   if TDirectory.Exists(Path) then
   begin
@@ -1536,6 +1546,8 @@ var
   p: TPoint;
 
 begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
   if FileListView.ItemIndex = - 1 then
     Exit;
   SrcFile := FFileList[FileListView.ItemIndex].FileName;
@@ -1640,17 +1652,6 @@ var
   p: TPoint;
 
 begin
-  FIsShowBookmarksInOtherWindow := False;
-  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
-  BookmarkMenu.Popup(p.X, p.Y);
-end;
-
-procedure TListViewFrame.ShowBookmarksInOtherWindow;
-var
-  p: TPoint;
-
-begin
-  FIsShowBookmarksInOtherWindow := True;
   p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
   BookmarkMenu.Popup(p.X, p.Y);
 end;
@@ -1685,6 +1686,8 @@ end;
 
 procedure TListViewFrame.ShowFilteringBox;
 begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
   FIsFilteringItems := True;
   SearchPanel.Visible := True;
   SearchLabel.Caption := ' Filter : ';
@@ -1716,6 +1719,8 @@ end;
 
 procedure TListViewFrame.ShowSearchBox;
 begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
   FIsFilteringItems := False;
   SearchPanel.Visible := True;
   SearchLabel.Caption := ' Search : ';

@@ -10,35 +10,41 @@ uses
 
 type
   TMainForm = class(TForm)
-    Panel_L: TPanel;
-    Panel_R: TPanel;
-    Panel_B: TPanel;
-    Memo1: TMemo;
     Frame_L: TListViewFrame;
     Frame_R: TListViewFrame;
+    HistoryMemo: TMemo;
+    Panel_B: TPanel;
+    Panel_L: TPanel;
+    Panel_R: TPanel;
+    ProgressBar: TProgressBar;
+    StatusBar: TStatusBar;
     procedure FormCreate(Sender: TObject);
-    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormDestroy(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormResize(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private 宣言 }
-    FBookmarks: TBookmarkCollection;
     function GetFocusedFrame: TListViewFrame;
     function GetUnfocusedFrame: TListViewFrame;
     procedure ChangeConsoleHeight(const MoveDistance: Integer);
     procedure ChangeExplorerWidth(const MoveDistance: Integer);
     procedure CloseApplication;
     procedure CopyFiles;
+    procedure LoadConfig;
     procedure MirrorCurrentDirectory(const Side: Word);
     procedure MoveFiles;
+    procedure MoveWindow;
     procedure OpenInAnotherWindow;
     procedure OpenNewTabInOtherWindow;
-    procedure LoadConfig;
+    procedure ResizeWindow;
     procedure SaveConfig;
     procedure ScrollHistoryBox(const IsForward: Boolean);
   public
     { Public 宣言 }
     procedure AddOperationHistory(const Text: string);
+    procedure GoToInUnfocusedFrame(const Path: string; IsAddTab: Boolean = False);
+    procedure ReloadUnfocusedFrame;
     procedure ShowFileProperty(const FileName: string);
   end;
 
@@ -49,11 +55,13 @@ implementation
 
 {$R *.dfm}
 
+uses FileTransfer;
+
 { TMainForm }
 
 procedure TMainForm.AddOperationHistory(const Text: string);
 begin
-  Memo1.Lines.Add(FormatDateTime('yy/mm/dd hh:nn:ss', Now) + #9 + Text);
+  HistoryMemo.Lines.Add(FormatDateTime('yy/mm/dd hh:nn:ss', Now) + #9 + Text);
 end;
 
 procedure TMainForm.ChangeConsoleHeight(const MoveDistance: Integer);
@@ -83,13 +91,23 @@ var
 begin
   Frame := GetUnfocusedFrame;
   Dest := Frame.CurrentDirectory;
-  GetFocusedFrame.FileTransfer(Dest, foFileCopy);
+  GetFocusedFrame.CopyOrMoveFiles(Dest);
   Frame.ChangeDirectory(Frame.CurrentDirectory);
 end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
+var
+  pb: TProgressBar;
+
 begin
-  LoadConfig;
+  pb := ProgressBar;
+  pb.Parent := StatusBar;
+  pb.Left := 2;
+  pb.Top := 2;
+  pb.Height := StatusBar.Height - 4;
+  pb.Width := StatusBar.Panels[0].Width - 4;
+  pb.Min := 0;
+  pb.Max := 100;
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
@@ -124,6 +142,8 @@ begin
         VK_RIGHT: ChangeExplorerWidth( MoveDistance);
         VK_DOWN:  ChangeConsoleHeight(-MoveDistance);
         VK_UP:    ChangeConsoleHeight( MoveDistance);
+        Ord('M'): MoveWindow;
+        Ord('R'): ResizeWindow;
       end;
     end;
     if Shift = [ssCtrl] then
@@ -135,6 +155,8 @@ begin
         VK_LEFT,
         VK_RIGHT:  MirrorCurrentDirectory(Key);
       end;
+      if Key in [VK_PRIOR, VK_NEXT] then
+        Key := 0;
     end;
     if Shift = [ssCtrl, ssShift] then
     begin
@@ -148,8 +170,12 @@ end;
 procedure TMainForm.FormResize(Sender: TObject);
 begin
   Panel_L.Width := MainForm.ClientWidth div 2;
-  Frame_L.ColumnOptimization;
-  Frame_R.ColumnOptimization;
+  StatusBar.Top := HistoryMemo.Top + 1;
+end;
+
+procedure TMainForm.FormShow(Sender: TObject);
+begin
+  LoadConfig;
 end;
 
 function TMainForm.GetFocusedFrame: TListViewFrame;
@@ -171,6 +197,22 @@ begin
     Result := Frame_L;
 end;
 
+procedure TMainForm.GoToInUnfocusedFrame(const Path: string; IsAddTab: Boolean);
+var
+  TabInfo: TTabInfo;
+  Frame: TListViewFrame;
+
+begin
+  Frame := GetUnfocusedFrame;
+  TabInfo.Path := Path;
+  TabInfo.ItemIndex := Frame.TabSet.TabIndex;
+  if IsAddTab then
+    Frame.AddTab(TabInfo)
+  else
+    Frame.UpdateTab(TabInfo);
+  Frame.ChangeDirectory(Path);
+end;
+
 procedure TMainForm.LoadConfig;
 var
   JsonPath: string;
@@ -190,28 +232,46 @@ begin
     with AppSettings.WindowConfig do
     begin
       // L
+      Frame_L.AddressEdit.Font.Name  := AddressBar.Font.Name;
+      Frame_L.AddressEdit.Font.Size  := AddressBar.Font.Size;
+      Frame_L.AddressEdit.Font.Color := AddressBar.Colors.Text;
+      Frame_L.AddressEdit.Color := AddressBar.Colors.Background;
       Frame_L.FileListView.Font.Name  := ListView.Font.Name;
       Frame_L.FileListView.Font.Size  := ListView.Font.Size;
       Frame_L.FileListView.Font.Color := ListView.Colors.Text;
       Frame_L.FileListView.Color := ListView.Colors.Background;
+      Frame_L.SearchEdit.Font.Name  := AddressBar.Font.Name;
+      Frame_L.SearchEdit.Font.Size  := AddressBar.Font.Size;
+      Frame_L.SearchEdit.Font.Color := AddressBar.Colors.Text;
+      Frame_L.SearchEdit.Color := AddressBar.Colors.Background;
       Frame_L.ChangeDirectory(AppSettings.CurrentDirs.L);
       TabInfo.Path := Frame_L.CurrentDirectory;
       TabInfo.ItemIndex := 0;
       Frame_L.AddTab(TabInfo);
       // R
+      Frame_R.AddressEdit.Font.Name  := AddressBar.Font.Name;
+      Frame_R.AddressEdit.Font.Size  := AddressBar.Font.Size;
+      Frame_R.AddressEdit.Font.Color := AddressBar.Colors.Text;
+      Frame_R.AddressEdit.Color := AddressBar.Colors.Background;
       Frame_R.FileListView.Font.Name  := ListView.Font.Name;
       Frame_R.FileListView.Font.Size  := ListView.Font.Size;
       Frame_R.FileListView.Font.Color := ListView.Colors.Text;
       Frame_R.FileListView.Color := ListView.Colors.Background;
+      Frame_R.SearchEdit.Font.Name  := AddressBar.Font.Name;
+      Frame_R.SearchEdit.Font.Size  := AddressBar.Font.Size;
+      Frame_R.SearchEdit.Font.Color := AddressBar.Colors.Text;
+      Frame_R.SearchEdit.Color := AddressBar.Colors.Background;
       Frame_R.ChangeDirectory(AppSettings.CurrentDirs.R);
       TabInfo.Path := Frame_R.CurrentDirectory;
       TabInfo.ItemIndex := 0;
       Frame_R.AddTab(TabInfo);
     end;
-    Memo1.Font.Name := AppSettings.HistoryMemoConfig.Font.Name;
-    Memo1.Font.Size := AppSettings.HistoryMemoConfig.Font.Size;
-    Memo1.Font.Color := AppSettings.HistoryMemoConfig.Colors.Text;
-    Memo1.Color := AppSettings.HistoryMemoConfig.Colors.Background;
+    Panel_L.Width   := AppSettings.WindowConfig.Width;
+    Panel_B.Height  := AppSettings.HistoryMemoConfig.Height;
+    HistoryMemo.Font.Name := AppSettings.HistoryMemoConfig.Font.Name;
+    HistoryMemo.Font.Size := AppSettings.HistoryMemoConfig.Font.Size;
+    HistoryMemo.Font.Color := AppSettings.HistoryMemoConfig.Colors.Text;
+    HistoryMemo.Color := AppSettings.HistoryMemoConfig.Colors.Background;
   finally
     AppSettings.Free;
   end;
@@ -227,15 +287,15 @@ begin
   Frame2 := nil;
   case Side of
     VK_LEFT:
-      begin
-        Frame1 := Frame_R;
-        Frame2 := Frame_L;
-      end;
+    begin
+      Frame1 := Frame_R;
+      Frame2 := Frame_L;
+    end;
     VK_RIGHT:
-      begin
-        Frame1 := Frame_L;
-        Frame2 := Frame_R;
-      end;
+    begin
+      Frame1 := Frame_L;
+      Frame2 := Frame_R;
+    end;
   end;
   if (Frame1 <> nil) and (Frame2 <> nil) then
   begin
@@ -255,9 +315,14 @@ begin
   Frame1 := GetUnfocusedFrame;
   Frame2 := GetFocusedFrame;
   Dest := Frame1.CurrentDirectory;
-  Frame2.FileTransfer(Dest, foFileMove);
+  Frame2.CopyOrMoveFiles(Dest, True);
   Frame1.ChangeDirectory(Frame1.CurrentDirectory);
   Frame2.ChangeDirectory(Frame2.CurrentDirectory);
+end;
+
+procedure TMainForm.MoveWindow;
+begin
+  SendMessage(MainForm.Handle, WM_SYSCOMMAND, SC_MOVE, 0);
 end;
 
 procedure TMainForm.OpenInAnotherWindow;
@@ -286,6 +351,16 @@ begin
   TabInfo.ItemIndex := 0;
   GetUnfocusedFrame.AddTab(TabInfo);
   GetUnfocusedFrame.ChangeDirectory(TabInfo.Path);
+end;
+
+procedure TMainForm.ReloadUnfocusedFrame;
+begin
+  GetUnfocusedFrame.Reload;
+end;
+
+procedure TMainForm.ResizeWindow;
+begin
+  SendMessage(MainForm.Handle, WM_SYSCOMMAND, SC_SIZE, 0);
 end;
 
 procedure TMainForm.SaveConfig;
@@ -320,9 +395,9 @@ end;
 procedure TMainForm.ScrollHistoryBox(const IsForward: Boolean);
 begin
   if IsForward then
-    Memo1.Perform(WM_VSCROLL, SB_PAGEDOWN, 0)
+    HistoryMemo.Perform(WM_VSCROLL, SB_PAGEDOWN, 0)
   else
-    Memo1.Perform(WM_VSCROLL, SB_PAGEUP, 0);
+    HistoryMemo.Perform(WM_VSCROLL, SB_PAGEUP, 0);
 end;
 
 procedure TMainForm.ShowFileProperty(const FileName: string);
@@ -333,21 +408,21 @@ begin
   if TDirectory.Exists(FileName) or FileExists(FileName) then
   begin
     FileInfo := GetFileProperty(FileName);
-    Memo1.Lines.Add(StringOfChar('-', 50));
-    Memo1.Lines.Add('ファイル名   :' + ExtractFileName(FileName));
-    Memo1.Lines.Add('場所         :' + ExtractFilePath(FileName));
+    HistoryMemo.Lines.Add(StringOfChar('-', 50));
+    HistoryMemo.Lines.Add('ファイル名   :' + ExtractFileName(FileName));
+    HistoryMemo.Lines.Add('場所         :' + ExtractFilePath(FileName));
     with FileInfo do
     begin
       if TDirectory.Exists(FileName) then
       begin
-        Memo1.Lines.Add('ファイル数   :' + FileCount.ToString);
-        Memo1.Lines.Add('フォルダ数   :' + FolderCount.ToString);
+        HistoryMemo.Lines.Add('ファイル数   :' + FileCount.ToString);
+        HistoryMemo.Lines.Add('フォルダ数   :' + FolderCount.ToString);
       end;
-      Memo1.Lines.Add('サイズ       :' + FormatFloat('#,##0', FileSize) + ' Byte ' +
+      HistoryMemo.Lines.Add('サイズ       :' + FormatFloat('#,##0', FileSize) + ' Byte ' +
         FormatFileSize(FileSize));
-      Memo1.Lines.Add('作成日時     :' + FormatDateTime('yyyy/mm/dd hh:nn:ss', CreationTime));
-      Memo1.Lines.Add('更新日時     :' + FormatDateTime('yyyy/mm/dd hh:nn:ss', LastWriteTime));
-      Memo1.Lines.Add('アクセス日時 :' + FormatDateTime('yyyy/mm/dd hh:nn:ss', LastAccessTime));
+      HistoryMemo.Lines.Add('作成日時     :' + FormatDateTime('yyyy/mm/dd hh:nn:ss', CreationTime));
+      HistoryMemo.Lines.Add('更新日時     :' + FormatDateTime('yyyy/mm/dd hh:nn:ss', LastWriteTime));
+      HistoryMemo.Lines.Add('アクセス日時 :' + FormatDateTime('yyyy/mm/dd hh:nn:ss', LastAccessTime));
     end;
   end;
 end;
