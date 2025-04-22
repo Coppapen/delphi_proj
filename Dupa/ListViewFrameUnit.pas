@@ -199,6 +199,7 @@ type
     procedure LoadConfig;
     procedure OnCopyWorkerTerminated(Sender: TObject);
     procedure OnDeleteWorkerTerminated(Sender: TObject);
+    procedure OpenCurrentDirInNewTab;
     procedure OpenInNewTab;
     procedure OpenItem;
     procedure OpenWithCommandPrompt;
@@ -1073,6 +1074,7 @@ begin
       Ord('F'): ShowFilteringBox;
       Ord('H'): ShowHistory;
       Ord('J'): ShowBookmarks;
+      Ord('N'): OpenCurrentDirInNewTab;
       Ord('P'): CopyPathToClipboard;
     end;
   end;
@@ -1462,6 +1464,19 @@ begin
     MainForm.AddOperationHistory('ƒLƒƒƒ“ƒZƒ‹‚³‚ê‚Ü‚µ‚½');
   MainForm.ProgressBar.Position := 0;
   FDeleteWorker := nil;
+end;
+
+procedure TListViewFrame.OpenCurrentDirInNewTab;
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  Path := FCurrentDirectory;
+  TabInfo.Path := Path;
+  TabInfo.ItemIndex := 0;
+  AddTab(TabInfo);
+  ChangeDirectory(Path);
 end;
 
 procedure TListViewFrame.OpenInNewTab;

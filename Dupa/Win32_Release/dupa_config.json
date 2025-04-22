@@ -1,13 +1,13 @@
 ﻿{
     "Position": {
-        "Top": 74,
-        "Left": 230,
+        "Top": 93,
+        "Left": 497,
         "Height": 891,
         "Width": 1408
     },
     "CurrentDirs": {
-        "L": "C:\\Users\\coppepan",
-        "R": "\\\\192.168.2.103\\Game\\Game Play Video\\十三機兵防衛圏"
+        "L": "\\\\192.168.2.103\\Game",
+        "R": "C:\\Users\\coppepan"
     },
     "WindowConfig": {
         "AddressBar": {
