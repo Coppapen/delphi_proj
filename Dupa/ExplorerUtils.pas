@@ -1,0 +1,584 @@
+unit ExplorerUtils;
+
+interface
+
+uses
+  System.Classes,
+  System.Generics.Collections,
+  System.Generics.Defaults,
+  System.IOUtils,
+  System.JSON,
+  System.JSON.Serializers,
+  System.JSON.Types,
+  System.SysUtils,
+  System.Types,
+  System.Win.ComObj,
+  REST.Json,
+  Vcl.Controls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Winapi.ActiveX,
+  Winapi.Imm,
+  Winapi.ShellAPI,
+  WInapi.ShlObj,
+  Winapi.Windows;
+
+type
+  TFileOperationType = (foFileCopy, foFileDelete, foFileMove, foFileRename);
+
+  TBookmarkItem = record
+    Title: string;
+    Path: string;
+  end;
+
+  TBookmarkItems = TArray<TBookmarkItem>;
+
+  TBookmarkList = class(TObject)
+  private
+    FBookmarkList: TList<TBookmarkItem>;
+    function GetCount: Integer;
+    function Get(Index: Integer): TBookmarkItem;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function IndexOf(const Title: string): Integer;
+    function Replace(const OldItem, NewItem: TBookmarkItem): Boolean;
+    procedure Add(const Item: TBookmarkItem);
+    procedure Delete(const Index: Integer);
+    procedure Clear;
+    procedure Exchange(const Index1, Index2: Integer);
+    procedure LoadFromFile(const FileName: string);
+    procedure SaveToFile(const FileName: string);
+    property Count: Integer read GetCount;
+    property Items[Index: Integer]: TBookmarkItem read Get; default;
+  end;
+
+  TExplorerHistory = class(TObject)
+  private
+    FList: TStringList;
+    FMaxHistory: Integer;
+    function GetCount: Integer;
+    function GetItem(Index: Integer): string;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function LastHistory: string;
+    procedure AddHistory(const Path: string);
+    property Count: Integer read GetCount;
+    property Items[Index: Integer]: string read GetItem; default;
+  end;
+
+  TFileInfo = record
+    FileName: string;
+    FileSize: Int64;
+    FileType: string;
+    FileCount: Integer;
+    FolderCount: Integer;
+    CreationTime:   TDateTime;
+    LastWriteTime:  TDateTime;
+    LastAccessTime: TDateTime;
+  end;
+
+function DoFileOperation(const SrcFile, DestFile: string;
+  OperationType: TFileOperationType): Boolean;
+function ExtractLinkPath(const LnkFileName: string): string;
+function FileTimeToDateTime(const Value: TFileTime): TDateTime;
+function FormatFileSize(const Size: Int64): string;
+function GetFileProperty(const FileName: string): TFileInfo;
+function GetFolderTotalSize(const FolderPath: string): Int64;
+function GetIconIndexForPath(const APath: string; ImageList: TImageList): Integer;
+function GetSubStringByByteCount(const InputStr: AnsiString; ByteCount: Integer): string;
+function GetUniqueFileName(const FileName: string): string;
+function IsDirectoryExistsAndLocked(const Path: string; var LockedFile: string): Boolean;
+function IsFileExistsAndLocked(const FileName: string): Boolean;
+function IsNetworkPath(const APath: string): Boolean;
+function LoadNetworkIcon: TIcon;
+procedure SetImeToAlphabetNumeric(ControlHandle: HWND);
+
+implementation
+
+function DoFileOperation(const SrcFile, DestFile: string;
+  OperationType: TFileOperationType): Boolean;
+begin
+  Result := True;
+  try
+    case OperationType of
+      foFileCopy: TFile.Copy(SrcFile, DestFile, True);
+      foFileMove:
+        begin
+          if FileExists(DestFile) then
+            TFile.Delete(DestFile);
+          TFile.Move(SrcFile, DestFile);
+        end;
+      foFileDelete:
+        begin
+          if TDirectory.Exists(SrcFile) then
+            TDirectory.Delete(SrcFile, True)
+          else
+            TFile.Delete(SrcFile);
+        end;
+      foFileRename: Result := RenameFile(SrcFile, DestFile);
+    end;
+  except
+    Result := False;
+  end;
+end;
+
+function ExtractLinkPath(const LnkFileName: string): string;
+const
+  IID_IPersistFile: TGUID = (D1:$0000010B;D2:$0000;D3:$0000;D4:($C0,$00,$00,$00,$00,$00,$00,$46));
+
+var
+  R: HRESULT;
+  SL: IShellLink;
+  PF: IPersistFile;
+  Path: array [0..MAX_PATH] of Char;
+  WFD: WIN32_FIND_DATA;
+
+begin
+  Result := '';
+  CoInitialize(nil);
+  R := CoCreateInstance(CLSID_ShellLink, nil, CLSCTX_INPROC_SERVER, IID_IShellLink, SL);
+  if Succeeded(R) then
+  begin
+    R := SL.QueryInterface(IID_IPersistFile, PF);
+    if Succeeded(R) then
+    begin
+      R := PF.Load(PChar(LnkFileName), STGM_READ);
+      if Succeeded(R) then
+      begin
+        R := SL.Resolve(0{Application.Handle}, SLR_ANY_MATCH);
+        if Succeeded(R) then
+        begin
+          SL.GetPath(Path, MAX_PATH, WFD, SLGP_SHORTPATH);
+          Result := Path;
+        end;
+      end;
+    end;
+  end;
+  CoUninitialize;
+end;
+
+function FileTimeToDateTime(const Value: TFileTime): TDateTime;
+var
+  SystemTime: TSystemTime;
+  TempTime: TFileTime;
+
+begin
+  try
+    FileTimeToLocalFileTime(Value, TempTime);
+    FileTimeToSystemTime(TempTime, SystemTime);
+    Result := SystemTimeToDateTime(SystemTime);
+  except
+    Result := 0;
+  end;
+end;
+
+function FormatFileSize(const Size: Int64): string;
+const
+  KB = 1024;
+  MB = KB * 1024;
+  GB = MB * 1024;
+
+begin
+  if Size < KB then
+    Result := Format('%6d B', [Size])
+  else
+  if Size < MB then
+    Result := Format('%6.1f K', [Size / KB])
+  else
+  if Size < GB then
+    Result := Format('%6.1f M', [Size / MB])
+  else
+    Result := Format('%6.1f G', [Size / GB])
+end;
+
+function GetFileProperty(const FileName: string): TFileInfo;
+
+  function FileTimeToDateTime(const FileTime: TFileTime): TDateTime;
+  var
+    SystemTime: TSystemTime;
+    TempTime: TFileTime;
+
+  begin
+    try
+      FileTimeToLocalFileTime(FileTime, TempTime);
+      FileTimeToSystemTime(TempTime, SystemTime);
+      Result := SystemTimeToDateTime(SystemTime);
+    except
+      Result := 0;
+    end;
+  end;
+
+var
+  FileInfo: TSHFileInfo;
+  FindData: TWin32FindData;
+  FileHandle: THandle;
+
+begin
+  SHGetFileInfo(PChar(FileName), 0, FileInfo, SizeOf(FileInfo), SHGFI_TYPENAME);
+  Result.FileType := FileInfo.szTypeName;
+  FileHandle := FindFirstFile(PChar(FileName), FindData);
+  if FileHandle <> INVALID_HANDLE_VALUE then
+  begin
+    try
+      Result.FileSize := Int64(FindData.nFileSizeHigh) shl 32 + FindData.nFileSizeLow;
+      if (FindData.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = FILE_ATTRIBUTE_DIRECTORY then
+      begin
+        Result.FileSize := GetFolderTotalSize(FileName);
+        Result.FileCount := Length(TDirectory.GetFiles(FileName, '*',
+          TSearchOption.soAllDirectories));
+        Result.FolderCount := Length(TDirectory.GetDirectories(FileName, '*',
+          TSearchOption.soAllDirectories));
+      end;
+      Result.CreationTime := FileTimeToDateTime(FindData.ftCreationTime);
+      Result.LastWriteTime := FileTimeToDateTime(FindData.ftLastWriteTime);
+      Result.LastAccessTime := FileTimeToDateTime(FindData.ftLastAccessTime);
+    finally
+      FindClose(FileHandle);
+    end;
+  end;
+end;
+
+function GetFolderTotalSize(const FolderPath: string): Int64;
+var
+  Rec: TSearchRec;
+  TotalSize: Int64;
+
+begin
+  TotalSize := 0;
+  if FindFirst(FolderPath + '\*', faAnyFile, Rec) = 0 then
+  begin
+    try
+      repeat
+        if (Rec.Name <> '.') and (Rec.Name <> '..') then
+        begin
+          if (Rec.Attr and faDirectory) = faDirectory then
+            TotalSize := TotalSize + GetFolderTotalSize(FolderPath + '\' + Rec.Name)
+          else
+            TotalSize := TotalSize + Rec.Size;
+        end;
+      until FindNext(Rec) <> 0;
+    finally
+      System.SysUtils.FindClose(Rec);
+    end;
+  end;
+  Result := TotalSize;
+end;
+
+function GetIconIndexForPath(const APath: string; ImageList: TImageList): Integer;
+var
+  SFI: TSHFileInfo;
+  Icon: TIcon;
+
+begin
+  if IsNetworkPath(APath) then
+  begin
+    Icon := LoadNetworkIcon;
+    try
+      Result := ImageList.AddIcon(Icon);
+    finally
+      Icon.Free;
+    end;
+  end else
+  begin
+    SHGetFileInfo(PChar(APath), 0, SFI, SizeOf(SFI),
+      SHGFI_ICON or SHGFI_SMALLICON or SHGFI_SYSICONINDEX);
+    Icon := TIcon.Create;
+    try
+      Icon.Handle := SFI.hIcon;
+      Result := ImageList.AddIcon(Icon);
+    finally
+      Icon.Free;
+    end;
+  end;
+end;
+
+function GetSubStringByByteCount(const InputStr: AnsiString; ByteCount: Integer): string;
+var
+  s1: AnsiString;
+
+begin
+  s1 := InputStr;
+  if Length(s1) >= ByteCount then
+  begin
+    case ByteType(InputStr, ByteCount) of
+      mbSingleByte,
+      mbTrailByte: s1 := Copy(InputStr, 1, ByteCount);
+      mbLeadByte:  s1 := Copy(InputStr, 1, ByteCount - 1);
+    end;
+  end;
+  if Length(s1) < ByteCount then
+    s1 := s1 + StringOfChar(Space, ByteCount - Length(s1));
+  Result := string(s1);
+end;
+
+function GetUniqueFileName(const FileName: string): string;
+var
+  NewFileName: string;
+  FileNameWithoutExt: string;
+  Extension: string;
+  i: Integer;
+
+begin
+  i := 0;
+  NewFileName := FileName;
+  while FileExists(NewFileName) do
+  begin
+    Inc(i);
+    FileNameWithoutExt := ChangeFileExt(FileName, '');
+    Extension := ExtractFileExt(FileName);
+    NewFileName := Format('%s_%d%s', [FileNameWithoutExt, i, Extension]);
+  end;
+  Result := NewFileName;
+end;
+
+function IsDirectoryExistsAndLocked(const Path: string; var LockedFile: string): Boolean;
+var
+  Files: TArray<string>;
+  FileName: string;
+
+begin
+  Result := False;
+  if not TDirectory.Exists(Path) then
+    Exit;
+  FIles := TDirectory.GetFileSystemEntries(Path, TSearchOption.soAllDirectories, nil);
+  for FileName in Files do
+  begin
+    if IsFileExistsAndLocked(FileName) then
+    begin
+      LockedFile := FileName;
+      Exit(True);
+    end;
+  end;
+end;
+
+function IsFileExistsAndLocked(const FileName: string): Boolean;
+var
+  Stream: TFileStream;
+
+begin
+  Result := False;
+  if FileExists(FileName) then
+  begin
+    try
+      Stream := TFileStream.Create(FileName, fmOpenReadWrite or fmShareDenyNone);
+      try
+        Result := False;
+      finally
+        Stream.Free;
+      end;
+    except
+      on E: EFOpenError do
+        Result := True;
+      on E: Exception do
+        Result := False;
+    end;
+  end;
+end;
+
+function IsNetworkPath(const APath: string): Boolean;
+begin
+  Result := APath.StartsWith('\\');
+end;
+
+function LoadNetworkIcon: TIcon;
+begin
+  Result := TIcon.Create;
+  Result.LoadFromResourceName(HInstance, 'NETDIRICON');
+end;
+
+procedure SetImeToAlphabetNumeric(ControlHandle: HWND);
+var
+  ImeContext: HIMC;
+
+begin
+  ImeContext := ImmGetContext(ControlHandle);
+  if ImeContext <> 0 then
+  begin
+    ImmSetConversionStatus(ImeContext, 0, 0);
+    ImmReleaseContext(ControlHandle, ImeContext);
+  end;
+end;
+
+{ TBookmarkList }
+
+procedure TBookmarkList.Add(const Item: TBookmarkItem);
+begin
+  if IndexOf(Item.Title) = - 1 then
+    FBookmarkList.Add(Item);
+end;
+
+procedure TBookmarkList.Clear;
+begin
+  FBookmarkList.Clear;
+end;
+
+constructor TBookmarkList.Create;
+begin
+  FBookmarkList := TList<TBookmarkItem>.Create;
+end;
+
+procedure TBookmarkList.Delete(const Index: Integer);
+begin
+  FBookmarkList.Delete(Index);
+end;
+
+destructor TBookmarkList.Destroy;
+begin
+  FBookmarkList.Free;
+  inherited;
+end;
+
+procedure TBookmarkList.Exchange(const Index1, Index2: Integer);
+begin
+  FBookmarkList.Exchange(Index1, Index2);
+end;
+
+function TBookmarkList.Get(Index: Integer): TBookmarkItem;
+begin
+  Result := FBookmarkList[Index];
+end;
+
+function TBookmarkList.GetCount: Integer;
+begin
+  Result := FBookmarkList.Count;
+end;
+
+function TBookmarkList.IndexOf(const Title: string): Integer;
+var
+  Item: TBookmarkItem;
+  i: Integer;
+
+begin
+  Result := - 1;
+  for i := 0 to FBookmarkList.Count - 1 do
+  begin
+    Item := FBookmarkList[i];
+    if Item.Title = Title then
+      Exit(i);
+  end;
+end;
+
+procedure TBookmarkList.LoadFromFile(const FileName: string);
+var
+  JSONArray: TJSONArray;
+  JSONObject: TJSONObject;
+  BookmarkItem: TBookmarkItem;
+  txt: TStringList;
+  i: Integer;
+
+begin
+  txt := TStringList.Create;
+  JSONArray := nil;
+  try
+    txt.LoadFromFile(FileName, TEncoding.UTF8);
+    JSONArray := TJSONObject.ParseJSONValue(txt.Text) as TJSONArray;
+    for i := 0 to JSONArray.Count - 1 do
+    begin
+      JSONObject := JSONArray.Items[i] as TJsonObject;
+      BookmarkItem.Title := JSONObject.GetValue<string>('Title');
+      BookmarkItem.Path  := JSONObject.GetValue<string>('Path');
+      FBookmarkList.Add(BookmarkItem);
+    end;
+  finally
+    txt.Free;
+    JSONArray.Free;
+  end;
+end;
+
+function TBookmarkList.Replace(const OldItem, NewItem: TBookmarkItem): Boolean;
+var
+  Index: Integer;
+
+  function ReplaceCheck(const Item: TBookmarkItem): Boolean;
+  var
+    TempItem: TBookmarkItem;
+    i: Integer;
+
+  begin
+    for i := 0 to FBookmarkList.Count - 1 do
+    begin
+      TempItem := FBookmarkList[i];
+      if (TempItem.Title = Item.Title) and (Index <> i) then
+        Exit(False);
+    end;
+    Result := True;
+  end;
+
+begin
+  Index := FBookmarkList.IndexOf(OldItem);
+  if ReplaceCheck(NewItem) then
+  begin
+    FBookmarkList[Index] := NewItem;
+    Result := True;
+  end else
+    Result := False;
+end;
+
+procedure TBookmarkList.SaveToFile(const FileName: string);
+var
+  BookmarkItem: TBookmarkItem;
+  JSONObject: TJSONObject;
+  JSONArray: TJSONArray;
+  txt: TStringList;
+  i: Integer;
+
+begin
+  txt := TStringList.Create;
+  try
+    JSONArray := TJSONArray.Create;
+    for i := 0 to FBookmarkList.Count - 1 do
+    begin
+      BookmarkItem := FBookmarkList[i];
+      JSONObject := TJsonObject.Create;
+      JSONObject.AddPair('Title', BookmarkItem.Title);
+      JSONObject.AddPair('Path',  BookmarkItem.Path);
+      JSONArray.Add(JSONObject);
+    end;
+    txt.Text := JSONArray.Format;
+    txt.SaveToFile(FileName);
+  finally
+    txt.Free;
+  end;
+end;
+
+{ TExplorerHistory }
+
+procedure TExplorerHistory.AddHistory(const Path: string);
+begin
+  if FList.IndexOf(Path) = - 1 then
+    FList.Add(Path);
+  if FList.Count > FMaxHistory then
+    FList.Delete(0);
+end;
+
+constructor TExplorerHistory.Create;
+begin
+  FList := TStringList.Create;
+  FMaxHistory := 20;
+end;
+
+destructor TExplorerHistory.Destroy;
+begin
+  FList.Free;
+  inherited;
+end;
+
+function TExplorerHistory.GetCount: Integer;
+begin
+  Result := FList.Count;
+end;
+
+function TExplorerHistory.GetItem(Index: Integer): string;
+begin
+  Result := FList[Index];
+end;
+
+function TExplorerHistory.LastHistory: string;
+begin
+  if FList.Count > 1 then
+    Result := FList[FList.Count - 2];
+end;
+
+end.

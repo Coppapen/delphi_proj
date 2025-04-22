@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2025/04/10 21:40:03.000.831,C:\Users\coppepan\Documents\Delphi\proj\dwx\dw_ProjectGroup.groupproj=C:\Users\coppepan\Documents\Embarcadero\Studio\Projects\ProjectGroup1.groupproj</Transaction>
+    <Transaction>2025/04/22 20:48:14.000.094,C:\Users\coppepan\Documents\Delphi\proj\dwx\dw_ProjectGroup.groupproj=C:\Users\coppepan\Documents\Delphi\proj\dwx\dupa_ProjectGroup.groupproj</Transaction>
+  </Transactions>
+	<Default.Personality>
+		<Projects ActiveProject="C:\Users\coppepan\Documents\Delphi\proj\Dupa\dupa.dproj"/>
+	</Default.Personality>
+</BorlandProject>

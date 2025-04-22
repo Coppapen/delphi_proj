@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{C496FE9F-D3E2-4A0A-9D28-74273CCA0C45}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="dupa.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="dupa_config.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="dupa">
+        <MSBuild Projects="dupa.dproj"/>
+    </Target>
+    <Target Name="dupa:Clean">
+        <MSBuild Projects="dupa.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="dupa:Make">
+        <MSBuild Projects="dupa.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="dupa_config">
+        <MSBuild Projects="dupa_config.dproj"/>
+    </Target>
+    <Target Name="dupa_config:Clean">
+        <MSBuild Projects="dupa_config.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="dupa_config:Make">
+        <MSBuild Projects="dupa_config.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="dupa;dupa_config"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="dupa:Clean;dupa_config:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="dupa:Make;dupa_config:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
