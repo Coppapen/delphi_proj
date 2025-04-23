@@ -1,13 +1,13 @@
 ﻿{
     "Position": {
-        "Top": 160,
-        "Left": 262,
+        "Top": 131,
+        "Left": 178,
         "Height": 842,
         "Width": 1412
     },
     "CurrentDirs": {
-        "L": "C:\\Users\\coppepan\\Documents\\Delphi\\proj",
-        "R": "C:\\Users\\coppepan\\Documents\\Delphi"
+        "L": "C:\\Users\\coppepan\\Documents",
+        "R": "C:\\Users\\coppepan"
     },
     "WindowConfig": {
         "AddressBar": {
@@ -23,7 +23,7 @@
         "ListView": {
             "Font": {
                 "Name": "Ricty Diminished",
-                "Size": 14
+                "Size": 12
             },
             "Colors": {
                 "Background": -16777215,

@@ -1,13 +1,13 @@
 ﻿{
     "Position": {
-        "Top": 93,
-        "Left": 497,
+        "Top": 97,
+        "Left": 243,
         "Height": 891,
         "Width": 1408
     },
     "CurrentDirs": {
-        "L": "\\\\192.168.2.103\\Game",
-        "R": "C:\\Users\\coppepan"
+        "L": "D:\\SteamLibrary\\steamapps\\common",
+        "R": "C:\\Users\\coppepan\\Desktop"
     },
     "WindowConfig": {
         "AddressBar": {

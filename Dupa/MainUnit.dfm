@@ -57,7 +57,6 @@ object MainForm: TMainForm
           StyleElements = [seFont, seClient, seBorder]
           ExplicitWidth = 303
           inherited SearchLabel: TLabel
-            Height = 18
             StyleElements = [seFont, seClient, seBorder]
           end
           inherited SearchEdit: TEdit
@@ -124,7 +123,6 @@ object MainForm: TMainForm
           StyleElements = [seFont, seClient, seBorder]
           ExplicitWidth = 317
           inherited SearchLabel: TLabel
-            Height = 18
             StyleElements = [seFont, seClient, seBorder]
           end
           inherited SearchEdit: TEdit

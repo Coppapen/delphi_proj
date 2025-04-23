@@ -668,6 +668,7 @@ var
   ImgListHandle: THandle;
   SHFileInfo: TSHFileInfo;
   i: Integer;
+  TempCanvas: TBitmap;
 
 begin
   inherited;
@@ -679,6 +680,13 @@ begin
   FTabList := TTabList.Create;
   LoadBookmarks;
   LoadConfig;
+  TempCanvas := TBitmap.Create;
+  try
+    TempCanvas.Canvas.Font := FileListView.Font;
+    FileImageList.Height := TempCanvas.Canvas.TextHeight('Ç†') + 6;
+  finally
+    TempCanvas.Free;
+  end;
   AdjustPanelHeightToEditFont(SearchEdit, StatusPanel);
   BookmarksToPopupMenu(FBookmarks, BookmarkMenu);
   // icon
@@ -946,6 +954,7 @@ var
   Rect: TRect;
   Icon: TIcon;
   IconWidth: Integer;
+  IconTop: Integer;
   SubText: string;
 
 begin
@@ -971,8 +980,9 @@ begin
     if FFileList[Item.Index].Icon <> nil then
     begin
       Icon := FFileList[Item.Index].Icon;
+      IconTop := (FileImageList.Height - Icon.Height) div 2;
       IconWidth := Icon.Width;
-      Draw(Rect.Left, Rect.Top + 2, Icon);
+      Draw(Rect.Left, Rect.Top + IconTop, Icon);
       SubText := FormatSubText(FFileList[Item.Index]);
     end;
     TextOut(Rect.Left + IconWidth + 2, Rect.Top + 3, Item.Caption);
@@ -1448,6 +1458,8 @@ begin
   begin
     MainForm.AddOperationHistory('èIóπÇµÇ‹ÇµÇΩ');
     MainForm.ReloadUnfocusedFrame;
+    if FCopyWorker.MoveMode then
+      Reload;
   end else
     MainForm.AddOperationHistory('ÉLÉÉÉìÉZÉãÇ≥ÇÍÇ‹ÇµÇΩ');
   MainForm.ProgressBar.Position := 0;

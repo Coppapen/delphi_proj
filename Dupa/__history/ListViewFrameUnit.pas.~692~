@@ -1,0 +1,1880 @@
+unit ListViewFrameUnit;
+
+interface
+
+uses
+  Winapi.ActiveX,
+  Winapi.CommCtrl,
+  Winapi.Imm,
+  Winapi.Messages,
+  Winapi.ShellAPI,
+  Winapi.ShlObj,
+  Winapi.Windows,
+  System.Classes,
+  System.DateUtils,
+  System.Generics.Collections,
+  System.Generics.Defaults,
+  System.IOUtils,
+  System.ImageList,
+  System.JSON,
+  System.Math,
+  System.RegularExpressions,
+  System.StrUtils,
+  System.SyncObjs,
+  System.SysUtils,
+  System.Types,
+  System.UITypes,
+  System.Variants,
+  System.Win.ComObj,
+  Vcl.Clipbrd,
+  Vcl.ComCtrls,
+  Vcl.Controls,
+  Vcl.Dialogs,
+  Vcl.ExtCtrls,
+  Vcl.Forms,
+  Vcl.Graphics,
+  Vcl.ImgList,
+  Vcl.Menus,
+  Vcl.StdCtrls,
+  Vcl.Tabs,
+  // My Units
+  ExplorerUtils,
+  ApplicationSettings,
+  BookmarkManager,
+  FileMonitor,
+  FileTransfer,
+  InputUnit,
+  OverwriteConfirm,
+  SortSelectUnit,
+  // Other Libraries
+  DragDrop,
+  DragDropFile,
+  DropSource,
+  MPShellUtilities,
+  VirtualShellNewMenu;
+
+const
+  SHARE_INFO_LEVEL_1 = 1;
+  MAX_PREFERRED_LENGTH = DWORD($FFFFFFFF);
+  NERR_Success = 0;
+  PARENT_DIR = '..';
+
+type
+  TTabInfo = record
+    Path: string;
+    ItemIndex: Integer;
+  end;
+
+  TTabList = class
+  strict private
+    FList: TList<TTabInfo>;
+  private
+    function GetItems(Index: Integer): TTabInfo;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(const TabInfo: TTabInfo);
+    procedure Change(const TabInfo: TTabInfo; TabIndex: Integer);
+    procedure Delete(const Index: Integer);
+    property Items[Index: Integer]: TTabInfo read GetItems; default;
+  end;
+
+  TDataListItem = class(TObject)
+  strict private
+    FFileName: string;
+    FFileExt: string;
+    FFileSize: Int64;
+    FFileDate: TDateTime;
+    FIcon: TIcon;
+    FFileAttrib: Integer;
+  public
+  published
+    property FileName:   string    read FFileName   write FFileName;
+    property FileExt:    string    read FFileExt    write FFileExt;
+    property FileSize:   Int64     read FFileSize   write FFileSize;
+    property FileDate:   TDateTime read FFileDate   write FFileDate;
+    property Icon:       TIcon     read FIcon       write FIcon;
+    property FileAttrib: Integer   read FFileAttrib write FFileAttrib;
+  end;
+
+  TListViewFrame = class(TFrame)
+    AddressEdit: TEdit;
+    BookmarkImgList: TImageList;
+    BookmarkMenu: TPopupMenu;
+    DropFileSource: TDropFileSource;
+    FileImageList: TImageList;
+    FileListView: TListView;
+    HistoryImgList: TImageList;
+    HistoryMenu: TPopupMenu;
+    NewMenu: TVirtualShellNewMenu;
+    SearchEdit: TEdit;
+    SearchLabel: TLabel;
+    SearchPanel: TPanel;
+    SelectedStatusPanel: TPanel;
+    StatusPanel: TPanel;
+    TabSet: TTabSet;
+    procedure FileListViewAdvancedCustomDrawItem(Sender: TCustomListView;
+      Item: TListItem; State: TCustomDrawState; Stage: TCustomDrawStage;
+      var DefaultDraw: Boolean);
+    procedure FileListViewData(Sender: TObject; Item: TListItem);
+    procedure FileListViewKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure FileListViewKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure FrameEnter(Sender: TObject);
+    procedure FrameExit(Sender: TObject);
+    procedure FrameResize(Sender: TObject);
+    procedure FileListViewMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure DropFileSourceGetDragImage(Sender: TObject;
+      const DragSourceHelper: IDragSourceHelper; var Handled: Boolean);
+    procedure NewMenuCreateNewFile(Sender: TMenu;
+      const NewMenuItem: TVirtualShellNewItem; var Path, FileName: string;
+      var Allow: Boolean);
+    procedure NewMenuAfterFileCreate(Sender: TMenu;
+      const NewMenuItem: TVirtualShellNewItem; const FileName: string);
+    procedure SearchEditKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+    procedure SearchEditKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
+  protected
+    procedure WMKeyDown(var Msg: TWMKeyDown); message CM_CHILDKEY;
+  private
+    { Private 宣言 }
+    FBookmarks: TBookmarkCollection;
+    FCopyWorker: TCopyWorker;
+    FCopyingFileName: string;
+    FCurrentDirectory: string;
+    FDeleteWorker: TDeleteWorker;
+    FExplorerHistory: TExplorerHistory;
+    FFileList: TList<TDataListItem>;
+    FIsFilteringItems: Boolean;
+    FIsFocused: Boolean;
+    FIsShowHiddenFiles: Boolean;
+    FKeyState: TShiftState;
+    FListItemsSelected: TArray<Boolean>;
+    FListViewColors: TListViewColors;
+    FSelectedItems: TList<TDataListItem>;
+    FTabList: TTabList;
+    // ファイル更新監視用
+    {
+    FFileMonitor: TFileMonitor;
+    FMutex: TMutex;
+    FEvent: TEvent;
+    }
+    function AddressBarText(const Path: string): string;
+    function IndexOfFileName(const FileName: string): Integer;
+    function OverwritePromptEvent(const SrcFile: string;
+      var DestFile: string): TOverwritePromptResult;
+    function SelectedItemsArray: TArray<string>;
+    procedure AdjustPanelHeightToEditFont(Edit: TEdit; Panel: TPanel);
+    procedure BookmarkMenuClick(Sender: TObject);
+    procedure BookmarksToPopupMenu(const Collection: TBookmarkCollection;
+      PopupMenu: TPopupMenu);
+    procedure ChangeShowHiddenFiles;
+    procedure ClearFileList;
+    procedure CloseTab;
+    procedure CopyDirectoryPathToClipboard;
+    procedure CopyFileNameToClipboard;
+    procedure CopyPathToClipboard;
+    procedure CopyProgressEvent(Sender: TObject; FileName: string;
+      Percent: Integer);
+    procedure CreateNewDirectory;
+    procedure DisableListViewHints(ListView: TListView);
+    procedure DeleteFiles;
+    procedure DeleteProgressEvent(Sender: TObject; FileName: string;
+      Percent: Integer);
+    procedure Deselected;
+    procedure ExecuteFile(const FileName: string);
+    procedure FileChange(Sender: TObject);
+    procedure FileListAddItems(const Directory: string; Filter: string = '');
+    procedure GoToNextTab;
+    procedure GoToParentDirectory;
+    procedure GotoSpecifiedDirectory;
+    procedure HistoryMenuClick(Sender: TObject);
+    procedure IncrementalSearch(const Key: Char); overload;
+    procedure IncrementalSearch(const Keyword: string); overload;
+    procedure InvertSelection;
+    procedure LoadBookmarks;
+    procedure LoadConfig;
+    procedure OnCopyWorkerTerminated(Sender: TObject);
+    procedure OnDeleteWorkerTerminated(Sender: TObject);
+    procedure OpenCurrentDirInNewTab;
+    procedure OpenInNewTab;
+    procedure OpenItem;
+    procedure OpenWithCommandPrompt;
+    procedure OpenWithExplorer;
+    procedure RenameItem;
+    procedure ScrollToItem(const ItemIndex: Integer);
+    procedure SelectItem(const ItemIndex: Integer);
+    procedure ShowBookmarks;
+    procedure ShowContextMenu;
+    procedure ShowCreateNewFileMenu;
+    procedure ShowFilteringBox;
+    procedure ShowHistory;
+    procedure ShowSearchBox;
+    procedure ShowSelectedFileStatus;
+    procedure Sort;
+  public
+    { Public 宣言 }
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    function CurrentLineItemPath: string;
+    procedure AddTab(const TabInfo: TTabInfo);
+    procedure ChangeDirectory(const Path: string; Filter: string = '');
+    procedure ColumnOptimization;
+    procedure CopyOrMoveFiles(const DestFolder: string; MoveMode: Boolean = False);
+    procedure Reload;
+    procedure UpdateTab(const TabInfo: TTabInfo);
+    property CurrentDirectory: string read FCurrentDirectory;
+    property SelectedItems: TList<TDataListItem> read FSelectedItems;
+ end;
+
+implementation
+
+{$R *.dfm}
+
+uses
+  MainUnit;
+
+var
+  SortColumns: array [1..4] of Integer;
+  SortColumnIndex: Integer;
+  SortSettings: TSortSettings;
+
+function SortFunction(const Left, Right: TDataListItem): Integer;
+var
+  Int1, Int2: Int64;
+  Str1, Str2: string;
+  Ext1, Ext2: string;
+  Date1, Date2: TDateTime;
+  Dir1, Dir2: Boolean;
+  TempInt: Integer;
+  Settings: TSortSettings;
+
+begin
+  Settings := SortSettings;
+  Result := 0;
+  Dir1 := (Left.FileAttrib and faDirectory) <> 0;
+  Dir2 := (Right.FileAttrib and faDirectory) <> 0;
+  Str1 := Left.FileName;
+  Str2 := Right.FileName;
+  Ext1 := ExtractFileExt(Left.FileName);
+  Ext2 := ExtractFileExt(Right.FileName);
+  Int1 := Left.FileSize;
+  Int2 := Right.FileSize;
+  Date1 := Left.FileDate;
+  Date2 := Right.FileDate;
+  if Settings.IsIgnoreCase then
+    TempInt := CompareText(Str1, Str2)
+  else
+    TempInt := CompareStr(Str1, Str2);
+  case SortColumnIndex of
+    1:
+    begin
+      if Settings.IsFoldersAtTheTop then
+      begin
+        if Dir1 and not Dir2 then
+          Result := - 1
+        else
+        if not Dir1 and Dir2 then
+          Result := 1
+        else
+        if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+          Result := SortColumns[SortColumnIndex] * TempInt
+      end else
+        Result := SortColumns[SortColumnIndex] * TempInt;
+    end;
+    2:
+    begin
+      if Settings.IsFoldersAtTheTop then
+      begin
+        if Dir1 and not Dir2 then
+          Result := - 1
+        else
+        if not Dir1 and Dir2 then
+          Result := 1
+        else
+        if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+        begin
+          if Ext1 = Ext2 then
+            Result := SortColumns[SortColumnIndex] * TempInt
+          else
+            Result := SortColumns[SortColumnIndex] * CompareText(Ext1, Ext2);
+        end;
+      end else
+      begin
+        if Ext1 = Ext2 then
+          Result := SortColumns[SortColumnIndex] * TempInt
+        else
+          Result := SortColumns[SortColumnIndex] * CompareText(Ext1, Ext2);
+      end;
+    end;
+    3:
+    begin
+      if Settings.IsFoldersAtTheTop then
+      begin
+        if Dir1 and not Dir2 then
+          Result := - 1
+        else
+        if not Dir1 and Dir2 then
+          Result := 1
+        else
+        if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+        begin
+          if Int1 = Int2 then
+            Result := SortColumns[SortColumnIndex] * TempInt
+          else
+            Result := SortColumns[SortColumnIndex] * CompareValue(Int1, Int2);
+        end;
+      end else
+        Result := SortColumns[SortColumnIndex] * CompareValue(Int1, Int2);
+    end;
+    4:
+    begin
+      if Settings.IsFoldersAtTheTop then
+      begin
+        if Dir1 and not Dir2 then
+          Result := - 1
+        else
+        if not Dir1 and Dir2 then
+          Result := 1
+        else
+        if (Dir1 and Dir2) or not (Dir1 or Dir2) then
+        begin
+          if Date1 = Date2 then
+            Result := SortColumns[SortColumnIndex] * TempInt
+          else
+            Result := SortColumns[SortColumnIndex] * CompareDateTime(Date1, Date2);
+        end;
+      end else
+        Result := SortColumns[SortColumnIndex] * CompareDateTime(Date1, Date2);
+    end
+  end;
+end;
+
+{ TListViewFrame }
+
+function TListViewFrame.AddressBarText(const Path: string): string;
+const
+  Delimiter = '  >  ';
+
+var
+  p: string;
+  Dirs: TArray<string>;
+
+begin
+  p := StringReplace(ExcludeTrailingPathDelimiter(Path), '\\', '', []);
+  Dirs := SplitString(p, '\');
+  Result := string.Join(Delimiter, Dirs) + '  ';
+end;
+
+procedure TListViewFrame.AddTab(const TabInfo: TTabInfo);
+var
+  Path: string;
+
+begin
+  Path := ExtractFileName(TabInfo.Path);
+  if Path = '' then
+    Path := ExcludeTrailingPathDelimiter(TabInfo.Path);
+  FTabList.Add(TabInfo);
+  TabSet.Tabs.Add(Path);
+  TabSet.TabIndex := TabSet.Tabs.Count - 1;
+end;
+
+procedure TListViewFrame.AdjustPanelHeightToEditFont(Edit: TEdit;
+  Panel: TPanel);
+var
+  TextHeight: Integer;
+  TempCanvas: TBitmap;
+
+begin
+  TempCanvas := TBitmap.Create;
+  try
+    TempCanvas.Canvas.Font := Edit.Font;
+    TextHeight := TempCanvas.Canvas.TextHeight('あ');
+    Panel.Height := TextHeight + 12;
+  finally
+    TempCanvas.Free;
+  end;
+end;
+
+procedure TListViewFrame.BookmarkMenuClick(Sender: TObject);
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  Path := TMenuItem(Sender).Hint;
+  TabInfo.Path := Path;
+  TabInfo.ItemIndex := TabSet.TabIndex;
+  if FKeyState = [] then
+  begin
+    UpdateTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+  if FKeyState = [ssShift] then
+  begin
+    AddTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+    MainForm.GoToPathInUnfocusedFrame(Path, FKeyState = [ssCtrl, ssShift]);
+end;
+
+procedure TListViewFrame.BookmarksToPopupMenu(const Collection: TBookmarkCollection;
+  PopupMenu: TPopupMenu);
+var
+  Cat: TBookmarkCategory;
+  Item: TBookmarkItem;
+  CategoryMenuItem, ItemMenuItem: TMenuItem;
+
+begin
+  PopupMenu.Items.Clear;
+  for Cat in Collection.Categories do
+  begin
+    if Trim(Cat.Category) = '' then
+    begin
+      // 未分類のブックマーク → 直接 PopupMenu に追加
+      for Item in Cat.Items do
+      begin
+        ItemMenuItem := TMenuItem.Create(PopupMenu);
+        ItemMenuItem.Caption := Item.Name;
+        ItemMenuItem.Hint := Item.Path;
+        ItemMenuItem.ImageIndex := GetIconIndexForPath(Item.Path, BookmarkImgList);
+        ItemMenuItem.OnClick := BookmarkMenuClick;
+        PopupMenu.Items.Add(ItemMenuItem);
+      end;
+    end
+    else
+    begin
+      // 通常カテゴリ
+      CategoryMenuItem := TMenuItem.Create(PopupMenu);
+      CategoryMenuItem.Caption := Cat.Category;
+      for Item in Cat.Items do
+      begin
+        ItemMenuItem := TMenuItem.Create(PopupMenu);
+        ItemMenuItem.Caption := Item.Name;
+        ItemMenuItem.Hint := Item.Path;
+        ItemMenuItem.ImageIndex := GetIconIndexForPath(Item.Path, BookmarkImgList);
+        ItemMenuItem.OnClick := BookmarkMenuClick;
+        CategoryMenuItem.Add(ItemMenuItem);
+      end;
+      PopupMenu.Items.Add(CategoryMenuItem);
+    end;
+  end;
+end;
+
+procedure TListViewFrame.ChangeDirectory(const Path: string; Filter: string);
+begin
+  if not TDirectory.Exists(Path) then
+  begin
+    MainForm.AddOperationHistory('ディレクトリを変更できません');
+    Exit;
+  end;
+  Deselected;
+  FCurrentDirectory := Path;
+  Update;
+  FileListView.Clear;
+  FileListAddItems(Path, Filter);
+  FileListView.items.Count := FFileList.Count;
+  AddressEdit.Text := AddressBarTExt(Path);
+  AddressEdit.SelStart := Length(AddressEdit.Text);
+  StatusPanel.Caption := Format('%d 個の項目', [FFileList.Count]);
+  if Filter <> '' then
+    StatusPanel.Caption := StatusPanel.Caption + ' ( フィルタリング中 )';
+  SelectedStatusPanel.Caption := '';
+  SortColumnIndex := SortSettings.SortIndex;
+  SortColumns[SortColumnIndex] := SortSettings.SortOrder;
+  FFileList.Sort(TComparer<TDataListItem>.Construct(SortFunction));
+  FileListView.ItemIndex := - 1;
+  if FFileList.Count > 0 then
+    FileListView.ItemIndex := 0;
+  FileListView.Invalidate;
+  FExplorerHistory.AddHistory(Path);
+  DisableListViewHints(FileListView);
+end;
+
+procedure TListViewFrame.ChangeShowHiddenFiles;
+var
+  FileName: string;
+  Index: Integer;
+
+begin
+  FIsShowHiddenFiles := not FIsShowHiddenFiles;
+  if FIsShowHiddenFiles then
+    MainForm.AddOperationHistory('隠しファイルを表示します')
+  else
+    MainForm.AddOperationHistory('隠しファイルを表示しません');
+  FileName := FFileList[FileListView.ItemIndex].FileName;
+  Reload;
+  Index := IndexOfFileName(FileName);
+  FileListView.ItemIndex := Index;
+end;
+
+procedure TListViewFrame.ClearFileList;
+var
+  i: Integer;
+
+begin
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    FFileList[i].Icon.Free;
+    FFileList[i].Free;
+  end;
+  FFileList.Clear;
+end;
+
+procedure TListViewFrame.CloseTab;
+var
+  ClosedTabIndex: Integer;
+  TabInfo: TTabInfo;
+
+begin
+  if TabSet.Tabs.Count = 1 then
+    Exit;
+  ClosedTabIndex := TabSet.TabIndex;
+  TabSet.Tabs.Delete(TabSet.TabIndex);
+  FTabList.Delete(ClosedTabIndex);
+  TabInfo := FTabList[TabSet.TabIndex];
+  UpdateTab(TabInfo);
+  ChangeDirectory(TabInfo.Path);
+end;
+
+procedure TListViewFrame.ColumnOptimization;
+
+  function HasVerticalScrollBar(Control: TWinControl): Boolean;
+  begin
+    Result := (GetWindowLong(Control.Handle, GWL_STYLE) and WS_VSCROLL) <> 0;
+  end;
+
+const
+  ScrollBarWidth   = 16;
+  SubTextCharCount = 33;
+
+var
+  lv: TListView;
+  Text: string;
+  R: TRect;
+  TotalWidth: Integer;
+
+begin
+  lv := FileListView;
+  lv.Canvas.Font := lv.Font;
+  R := Rect(0, 0, 0, 0);
+  Text := StringOfChar(' ', SubTextCharCount);
+  {
+    lv.Canvas.TextWidth で文字幅を計算していたが、実行するたびに値が変わるので
+    取得方法を DrawText に変えた
+    チャットくんによると、DPI や ClearType との相性が比較的良いとのこと
+  }
+  DrawText(lv.Canvas.Handle, PChar(Text), Length(Text), R, DT_CALCRECT);
+  lv.Columns[1].Width := R.Right - R.Left;
+  {
+    スクロールバーが表示されるかどうかで ClientWidth の値が変わる
+    スクロールバーの有無を判定して幅を調整する
+  }
+  TotalWidth := lv.ClientWidth;
+  if not HasVerticalScrollBar(lv) then
+    TotalWidth := TotalWidth - ScrollBarWidth;
+  if TotalWidth > lv.Columns[1].Width then
+    lv.Columns[0].Width := TotalWidth - lv.Columns[1].Width - 10;
+end;
+
+procedure TListViewFrame.CopyDirectoryPathToClipboard;
+begin
+  Clipboard.AsText := FCurrentDirectory;
+end;
+
+procedure TListViewFrame.CopyFileNameToClipboard;
+var
+  List: TStringList;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+  begin
+    Clipboard.AsText := ExtractFileName(CurrentLineItemPath);
+    MainForm.AddOperationHistory(
+      Format('パスをクリップボードにコピーしました [ %s ]', [CurrentLineItemPath]));
+  end else
+  begin
+    List := TStringList.Create;
+    try
+      for i := 0 to FSelectedItems.Count - 1 do
+        List.Add(ExtractFileName(FSelectedItems[i].FileName));
+      Clipboard.AsText := List.Text;
+    finally
+      List.Free;
+    end;
+    MainForm.AddOperationHistory('パスをクリップボードにコピーしました');
+  end;
+end;
+
+procedure TListViewFrame.CopyOrMoveFiles(const DestFolder: string;
+  MoveMode: Boolean);
+var
+  Items: TArray<string>;
+
+begin
+  FCopyingFileName := '';
+  if MoveMode then
+    MainForm.AddOperationHistory('移動を開始します')
+  else
+    MainForm.AddOperationHistory('コピーを開始します');
+  Items := SelectedItemsArray;
+  FCopyWorker := TCopyWorker.Create(Items, DestFolder,
+    CopyProgressEvent, OverwritePromptEvent, MoveMode);
+  FCopyWorker.OnTerminate := OnCopyWorkerTerminated;
+  FCopyWorker.Start;
+end;
+
+procedure TListViewFrame.CopyPathToClipboard;
+var
+  List: TStringList;
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+  begin
+    Clipboard.AsText := CurrentLineItemPath;
+    MainForm.AddOperationHistory(
+      Format('パスをクリップボードにコピーしました [ %s ]', [CurrentLineItemPath]));
+  end else
+  begin
+    List := TStringList.Create;
+    try
+      for i := 0 to FSelectedItems.Count - 1 do
+        List.Add(FSelectedItems[i].FileName);
+      Clipboard.AsText := List.Text;
+    finally
+      List.Free;
+    end;
+    MainForm.AddOperationHistory('パスをクリップボードにコピーしました');
+  end;
+end;
+
+procedure TListViewFrame.CopyProgressEvent(Sender: TObject; FileName: string;
+   Percent: Integer);
+begin
+  // TCopyWorker に渡す進行状況表示メソッド
+  MainForm.ProgressBar.Position := Percent;
+  if FCopyingFileName <> FileName then
+    MainForm.AddOperationHistory(Format('[ %s ]', [FileName]));
+  FCopyingFileName := FileName;
+end;
+
+constructor TListViewFrame.Create(AOwner: TComponent);
+var
+  ImgListHandle: THandle;
+  SHFileInfo: TSHFileInfo;
+  i: Integer;
+  TempCanvas: TBitmap;
+
+begin
+  inherited;
+  FileListView.DoubleBuffered := True;
+  FExplorerHistory := TExplorerHistory.Create;
+  FFileList := TList<TDataListItem>.Create;
+  FIsShowHiddenFiles := False;
+  FSelectedItems := TList<TDataListItem>.Create;
+  FTabList := TTabList.Create;
+  LoadBookmarks;
+  LoadConfig;
+  TempCanvas := TBitmap.Create;
+  try
+    TempCanvas.Canvas.Font := FileListView.Font;
+    FileImageList.Height := TempCanvas.Canvas.TextHeight('あ');
+  finally
+    TempCanvas.Free;
+  end;
+  AdjustPanelHeightToEditFont(SearchEdit, StatusPanel);
+  BookmarksToPopupMenu(FBookmarks, BookmarkMenu);
+  // icon
+  InitCommonControls;
+  ImgListHandle := SHGetFileInfo('', 0, SHFileInfo, SizeOf(SHFileInfo),
+    SHGFI_ICON or SHGFI_SMALLICON or SHGFI_SYSICONINDEX);
+  ListView_SetImageList(FileListView.Handle, ImgListHandle, LVSIL_SMALL);
+  // sort
+  SortSettings.SortIndex := 1;
+  SortSettings.SortOrder := 1;
+  SortSettings.IsFoldersAtTheTop := True;
+  SortSettings.IsIgnoreCase := True;
+  SortColumnIndex := SortSettings.SortIndex;
+  for i := Low(SortColumns) to High(SortColumns) do
+    SortColumns[i] := 1;
+  // ファイル更新監視用スレッド
+  {
+  FMutex := TMutex.Create(nil, True, 'Global\MyMutex');
+  FEvent := TEvent.Create(nil, True, False, 'Global\MyEvent');
+  FFileMonitor := TFileMonitor.Create(FMutex, FEvent);
+  FFileMonitor.OnChange := FileChange;
+  FEvent.SetEvent;
+  }
+end;
+
+procedure TListViewFrame.CreateNewDirectory;
+var
+  NewDirName, Path: string;
+  Index: Integer;
+  p: TPoint;
+
+begin
+  InputForm.Init('新しいフォルダの作成', 'フォルダ名', '');
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  InputForm.Left := p.X;
+  InputForm.Top  := p.Y;
+  InputForm.ShowModal;
+  SetImeToAlphabetNumeric(Self.Handle);
+  if InputForm.IsCancel then
+    Exit;
+  NewDirName := InputForm.InputText;
+  Path := IncludeTrailingPathDelimiter(FCurrentDirectory) + NewDirName;
+  if TDirectory.Exists(Path) then
+  begin
+    MainForm.AddOperationHistory(Format('既に同じ名前のフォルダが存在します [ %s ]',
+      [NewDirName]));
+  end else
+  begin
+    if CreateDir(Path) then
+    begin
+      MainForm.AddOperationHistory(Format('新規フォルダを作成しました [ %s ]',
+        [NewDirName]));
+      Reload;
+      Index := IndexOfFileName(Path);
+      FileListView.ItemIndex := Index;
+      ScrollToItem(Index);
+    end else
+    begin
+      MainForm.AddOperationHistory(Format('新規フォルダを作成に失敗しました [ %s ]',
+        [NewDirName]));
+    end;
+  end;
+end;
+
+function TListViewFrame.CurrentLineItemPath: string;
+begin
+  if FileListView.ItemIndex <> - 1 then
+    Result := FFileList[FileListView.ItemIndex].FileName;
+end;
+
+procedure TListViewFrame.DeleteFiles;
+var
+  Items: TArray<string>;
+
+begin
+  if FSelectedItems.Count = 0 then
+    Exit;
+  MainForm.AddOperationHistory('削除を開始します');
+  if Application.MessageBox('削除してもよろしいですか', '確認',
+    MB_YESNO or MB_ICONQUESTION or MB_DEFBUTTON2) = IDYES then
+  begin
+    Items := SelectedItemsArray;
+    FDeleteWorker := TDeleteWorker.Create(Items, DeleteProgressEvent);
+    FDeleteWorker.OnTerminate := OnDeleteWorkerTerminated;
+    FDeleteWorker.Start;
+    Reload;
+  end else
+    MainForm.AddOperationHistory('削除がキャンセルされました');
+end;
+
+procedure TListViewFrame.DeleteProgressEvent(Sender: TObject; FileName: string;
+  Percent: Integer);
+begin
+  // TDeleteWorker に渡す進行状況表示メソッド
+  MainForm.ProgressBar.Position := Percent;
+  MainForm.AddOperationHistory(Format('[ %s ]', [FileName]));
+end;
+
+procedure TListViewFrame.Deselected;
+var
+  i: Integer;
+
+begin
+  if FSelectedItems.Count = 0 then
+    Exit;
+  for i := 0 to Length(FListItemsSelected) - 1 do
+    FListItemsSelected[i] := False;
+  FSelectedItems.Clear;
+  SelectedStatusPanel.Caption := '';
+  FileListView.Invalidate;
+end;
+
+destructor TListViewFrame.Destroy;
+var
+  i: Integer;
+
+begin
+  FExplorerHistory.Free;
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    FFileList[i].Icon.Free;
+    FFileList[i].Free;
+  end;
+  FFileList.Free;
+  FSelectedItems.Free;
+  FTabList.Free;
+  {
+  FMutex.Free;
+  FEvent.Free;
+  if Assigned(FFileMonitor) then
+  begin
+    FFileMonitor.Terminate;
+    FFileMonitor.WaitFor;
+    FFileMonitor.Free;
+  end;
+  }
+  FBookmarks.Free;
+  inherited;
+end;
+
+procedure TListViewFrame.DisableListViewHints(ListView: TListView);
+var
+  Style: DWORD;
+
+begin
+  Style := ListView_GetExtendedListViewStyle(ListView.Handle);
+  Style := Style and not LVS_EX_INFOTIP;
+  ListView_SetExtendedListViewStyle(ListView.Handle, Style);
+end;
+
+procedure TListViewFrame.DropFileSourceGetDragImage(Sender: TObject;
+  const DragSourceHelper: IDragSourceHelper; var Handled: Boolean);
+var
+  Pt: TPoint;
+
+begin
+  GetCursorPos(Pt);
+  Handled := Succeeded(DragSourceHelper.InitializeFromWindow(FileListView.Handle,
+    Pt, TCustomDropSource(Sender) as IDataObject));
+end;
+
+procedure TListViewFrame.ExecuteFile(const FileName: string);
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  if CompareText(ExtractFileExt(FileName), '.lnk') = 0 then
+  begin
+    Path := ExtractLinkPath(FileName);
+    if TDirectory.Exists(Path) then
+    begin
+      TabInfo.Path := Path;
+      TabInfo.ItemIndex := 0;
+      UpdateTab(TabInfo);
+      ChangeDirectory(Path);
+    end else
+      ShellExecute(0, 'open', PChar(FileName), '', PChar(ExtractFilePath(FileName)), SW_SHOWNORMAL);
+  end else
+    ShellExecute(0, 'open', PChar(FileName), '', PChar(ExtractFilePath(FileName)), SW_SHOWNORMAL);
+end;
+
+procedure TListViewFrame.FileChange(Sender: TObject);
+begin
+  Reload;
+end;
+
+procedure TListViewFrame.FileListAddItems(const Directory: string; Filter: string);
+var
+  Rec: TSearchRec;
+  SHFileInfo: TSHFileInfo;
+  Path: string;
+  Item: TDataListItem;
+  Attrib: Integer;
+
+begin
+  ClearFileList;
+  FListItemsSelected := [];
+  Path := IncludeTrailingPathDelimiter(Directory);
+  if FindFirst(Path + '*.*', faAnyFile, Rec) = 0 then
+  begin
+    repeat
+        if (Rec.Name <> '..') and (Rec.Name <> '.') then
+        begin
+          if (Rec.Attr and faHidden <> 0) and not FIsShowHiddenFiles then
+            Continue;
+          if ((Filter <> '') and not TRegEx.IsMatch(Rec.Name, Filter, [roIgnoreCase])) then
+            Continue;
+          Item := TDataListItem.Create;
+          Attrib := Rec.Attr;
+          Item.FileName := Path + Rec.Name;
+          Item.FileExt  := ExtractFileExt(Rec.Name);
+          Item.FileAttrib := Attrib;
+          if BOOL(Attrib and faDirectory) then
+          begin
+            Item.FileExt  := '';
+            Item.FileSize := 0;
+          end else
+            Item.FileSize := Rec.FindData.nFileSizeLow;
+          Item.FileDate := FileTimeToDateTime(Rec.FindData.ftLastWriteTime);
+          // システムアイコンリストからアイコンを取得
+          SHGetFileInfo(PChar(Path + Rec.Name), 0, SHFileInfo, SizeOf(SHFileInfo),
+            SHGFI_ICON or SHGFI_SMALLICON or SHGFI_SYSICONINDEX);
+          Item.Icon := TIcon.Create;
+          Item.Icon.Handle := SHFileInfo.hIcon;
+          FFileList.Add(Item);
+          SetLength(FListItemsSelected, Length(FListItemsSelected) + 1);
+          FListItemsSelected[High(FListItemsSelected)] := False;
+        end;
+    until FindNext(Rec) <> 0;
+  end;
+  FindClose(Rec);
+  if FFileList.Count = 0 then
+  begin
+    Item := TDataListItem.Create;
+    Item.FileName := PARENT_DIR;
+    FFileList.Add(Item);
+    SetLength(FListItemsSelected, 1);
+  end;
+end;
+
+procedure TListViewFrame.FileListViewAdvancedCustomDrawItem(
+  Sender: TCustomListView; Item: TListItem; State: TCustomDrawState;
+  Stage: TCustomDrawStage; var DefaultDraw: Boolean);
+
+  function FormatSubText(const Item: TDataListItem): string;
+  var
+    Ext, Size, Date: string;
+
+  begin
+    Ext := Item.FileExt;
+    if Length(Ext) > 5 then
+      Ext := StringOfChar(Space, 5)
+    else
+      Ext := LeftStr(Ext + StringOfChar(Space, 5), 5);
+    Size := FormatFileSize(Item.FileSize);
+    if Item.FileAttrib and faDirectory <> 0 then
+      Size := '   <DIR>';
+    Date := FormatDateTime('yy/mm/dd hh:nn:ss', Item.FileDate);
+    Result := string.Join(Space, [Ext, Size, Date]);
+  end;
+
+var
+  lv: TListView;
+  Rect: TRect;
+  Icon: TIcon;
+  IconWidth: Integer;
+  IconTop: Integer;
+  SubText: string;
+
+begin
+  lv := TListView(Sender);
+  with lv.Canvas do
+  begin
+    Rect := Item.DisplayRect(drBounds);
+    FillRect(Rect);
+    // 選択されたファイル
+    if FListItemsSelected[Item.Index] then
+    begin
+      Brush.Color := FListViewColors.SelectedItems;
+      FillRect(Rect);
+    end;
+    // 現在行に下線
+    if FIsFocused and Item.Selected then
+    begin
+      Pen.Color := FListViewColors.UnderLine;
+      Pen.Width := 3;
+      MoveTo(Rect.Left, Rect.Bottom - 2);
+      LineTo(Rect.Right - 2, Rect.Bottom - 2);
+    end;
+    if FFileList[Item.Index].Icon <> nil then
+    begin
+      Icon := FFileList[Item.Index].Icon;
+      IconTop := (FileImageList.Height - Icon.Height) div 2;
+      IconWidth := Icon.Width;
+      Draw(Rect.Left, Rect.Top + IconTop, Icon);
+      SubText := FormatSubText(FFileList[Item.Index]);
+    end;
+    TextOut(Rect.Left + IconWidth + 2, Rect.Top + 3, Item.Caption);
+    if Item.SubItems.Count > 0 then
+      TextOut(Rect.Left + lv.Columns[0].Width + 2, Rect.Top + 3, SubText);
+    DefaultDraw := False;
+  end;
+end;
+
+procedure TListViewFrame.FileListViewData(Sender: TObject; Item: TListItem);
+const
+  Ellipsis = '.. ';
+  ColumnWidthMargin = 20;
+
+var
+  Index: Integer;
+  FileName: string;
+  Ext: string;
+  lv: TListView;
+
+begin
+  if (FFileList.Count > 0) and (Item.Index < FFileList.Count) then
+  begin
+    Index := Item.Index;
+    FileName := ExtractFileName(FFileList[Index].FileName);
+    Ext := ExtractFileExt(FileName);
+    if not TDirectory.Exists(FileName) and (Length(Ext) <= 5) then
+      FileName := ChangeFileExt(FileName, '');
+    lv := FileListView;
+    if lv.Canvas.TextWidth(FileName) > lv.Columns[0].Width - ColumnWidthMargin then
+    begin
+      while lv.Canvas.TextWidth(FileName + Ellipsis) > lv.Columns[0].Width do
+      begin
+        SetLength(FileName, Length(FileName) - 1);
+        if FileName = '' then
+          Break;
+      end;
+      FileName := FileName + Ellipsis;
+    end;
+    Item.Caption := FileName;
+    Item.SubItems.Add('');
+  end;
+end;
+
+procedure TListViewFrame.FileListViewKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  FKeyState := Shift;
+  if Shift = [] then
+  begin
+    // ここでは VK_TAB をキャッチできないので
+    // WMKeyDown メソッドでキャッチする
+    case Key of
+      VK_ESCAPE:
+      begin
+        if Assigned(FCopyWorker) then
+          FCopyWorker.DoCancel
+        else
+        if Assigned(FDeleteWorker) then
+          FDeleteWorker.DoCancel
+        else
+        if SearchPanel.Visible then
+          SearchPanel.Visible := False
+        else
+        if FIsFilteringItems then
+          ChangeDirectory(FCurrentDirectory)
+        else
+          Deselected;
+      end;
+      VK_RETURN: OpenItem;
+      VK_SPACE:  SelectItem(FileListView.ItemIndex);
+      VK_F3:  IncrementalSearch(SearchEdit.Text);
+      VK_F5:  Reload;
+      VK_F12: OpenWithCommandPrompt;
+      Ord('A'): InvertSelection;
+      Ord('D'): DeleteFiles;
+      Ord('E'): OpenWithExplorer;
+      Ord('F'): ShowSearchBox;
+      Ord('G'): GotoSpecifiedDirectory;
+      Ord('H'): ShowHistory;
+      Ord('J'): ShowBookmarks;
+      Ord('N'): ShowCreateNewFileMenu;
+      Ord('P'): CopyFileNameToClipboard;
+      Ord('R'): RenameItem;
+      Ord('S'): Sort;
+      Ord('T'): OpenInNewTab;
+      Ord('W'): CloseTab;
+    end;
+  end;
+  if Shift = [ssAlt] then
+  begin
+    case Key of
+      VK_RETURN: MainForm.ShowFileProperty(CurrentLineItemPath);
+    end;
+  end;
+  if Shift = [ssCtrl] then
+  begin
+    case Key of
+      Ord('F'): ShowFilteringBox;
+      Ord('H'): ShowHistory;
+      Ord('J'): ShowBookmarks;
+      Ord('N'): OpenCurrentDirInNewTab;
+      Ord('P'): CopyPathToClipboard;
+    end;
+  end;
+  if Shift = [ssShift] then
+  begin
+    case Key of
+      VK_F10: ShowContextMenu;
+      Ord('J'): ShowBookmarks;
+      Ord('H'): ShowHistory;
+      // Ord('A')..Ord('Z'): IncrementalSearch(Char(Key));
+    end;
+  end;
+  if Shift = [ssCtrl, ssShift] then
+  begin
+    case Key of
+      Ord('H'): ShowHistory;
+      Ord('J'): ShowBookmarks;
+      Ord('N'): CreateNewDirectory;
+      Ord('P'): CopyDirectoryPathToClipboard;
+      Ord('S'): ChangeShowHiddenFiles;
+    end;
+  end;
+end;
+
+procedure TListViewFrame.FileListViewKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Shift = [] then
+  begin
+    case Key of
+      VK_BACK: GoToParentDirectory;
+    end;
+  end;
+end;
+
+procedure TListViewFrame.FileListViewMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  i: Integer;
+
+begin
+  if (FileListView.SelCount > 0) and (DragDetectPlus(TWinControl(Sender))) then
+  begin
+    DropFileSource.Files.Clear;
+    for i := 0 to FSelectedItems.Count - 1 do
+      DropFileSource.Files.Add(FSelectedItems.Items[i].FileName);
+    DropFileSource.Execute;
+  end;
+end;
+
+procedure TListViewFrame.FrameEnter(Sender: TObject);
+begin
+  FIsFocused := True;
+  if FileListView.ItemIndex = - 1 then
+    FileListView.ItemIndex := 0;
+end;
+
+procedure TListViewFrame.FrameExit(Sender: TObject);
+begin
+  FIsFocused := False;
+end;
+
+procedure TListViewFrame.FrameResize(Sender: TObject);
+begin
+  ColumnOptimization;
+end;
+
+procedure TListViewFrame.GoToNextTab;
+var
+  TabInfo: TTabInfo;
+
+begin
+  if TabSet.TabIndex = TabSet.Tabs.Count - 1 then
+    TabSet.TabIndex := 0
+  else
+    TabSet.TabIndex := TabSet.TabIndex + 1;
+  TabInfo := FTabList[TabSet.TabIndex];
+  ChangeDirectory(TabInfo.Path);
+  ScrollToItem(TabInfo.ItemIndex);
+end;
+
+procedure TListViewFrame.GoToParentDirectory;
+var
+  DirName, Path: string;
+  TabInfo: TTabInfo;
+  Index: Integer;
+
+begin
+  DirName := FCurrentDirectory;
+  Path := ExtractFileDir(FCurrentDirectory);
+  if DirName = Path then
+    Exit;
+  if not TDirectory.Exists(Path) then
+    Exit;
+  ChangeDirectory(Path);
+  Index := IndexOfFileName(DirName);
+  TabInfo.Path := Path;
+  TabInfo.ItemIndex := Index;
+  UpdateTab(TabInfo);
+  ScrollToItem(Index);
+end;
+
+procedure TListViewFrame.GotoSpecifiedDirectory;
+var
+  p: TPoint;
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  InputForm.Init('指定したアドレスへ移動', 'アドレス', '');
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  InputForm.Left := p.X;
+  InputForm.Top  := p.Y;
+  InputForm.ShowModal;
+  Path := InputForm.InputText;
+  if InputForm.IsCancel then
+  begin
+    MainForm.AddOperationHistory('操作がキャンセルされました');
+    Exit;
+  end;
+  if TDirectory.Exists(Path) then
+  begin
+    TabInfo.Path := Path;
+    TabInfo.ItemIndex := 0;
+    UpdateTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+    MainForm.AddOperationHistory(Format('指定したアドレスが存在します [ %s ]', [Path]));
+end;
+
+procedure TListViewFrame.HistoryMenuClick(Sender: TObject);
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  Path := TMenuItem(Sender).Hint;
+  TabInfo.Path := Path;
+  TabInfo.ItemIndex := TabSet.TabIndex;
+  if FKeyState = [] then
+  begin
+    UpdateTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+  if FKeyState = [ssShift] then
+  begin
+    AddTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+    MainForm.GoToPathInUnfocusedFrame(Path, FKeyState = [ssCtrl, ssShift]);
+end;
+
+procedure TListViewFrame.IncrementalSearch(const Keyword: string);
+var
+  FileName: string;
+  kw: string;
+  StartIndex: Integer;
+  i: Integer;
+
+begin
+  if FileListView.Items.Count = 0 then
+    Exit;
+  kw := LowerCase(Keyword);
+  StartIndex := FileListView.ItemIndex + 1;
+  if StartIndex > FileListView.Items.Count - 1 then
+    StartIndex := FileListView.Items.Count - 1
+  else
+  begin
+    for i := StartIndex to FileListView.Items.Count - 1 do
+    begin
+      FileName := LowerCase(ExtractFileName(FFileList[i].FileName));
+      if Pos(kw, FileName) <> 0 then
+      begin
+        FileListView.ItemIndex := i;
+        ScrollToItem(i);
+        Exit;
+      end;
+    end;
+  end;
+  for i := 0 to StartIndex - 1 do
+  begin
+    FileName := LowerCase(ExtractFileName(FFileList[i].FileName));
+    if Pos(kw, FileName) <> 0 then
+    begin
+      FileListView.ItemIndex := i;
+      ScrollToItem(i);
+      Exit;
+    end;
+  end;
+end;
+
+procedure TListViewFrame.IncrementalSearch(const Key: Char);
+var
+  StartIndex: Integer;
+  i: Integer;
+
+begin
+  if FileListView.Items.Count = 0 then
+    Exit;
+  StartIndex := FileListView.ItemIndex + 1;
+  if StartIndex > FileListView.Items.Count - 1 then
+    StartIndex := FileListView.Items.Count - 1
+  else
+  begin
+    for i := StartIndex to FileListView.Items.Count - 1 do
+    begin
+      if StartsText(Key, ExtractFileName(FFileList[i].FileName)) then
+      begin
+        FileListView.ItemIndex := i;
+        ScrollToItem(i);
+        Exit;
+      end;
+    end;
+  end;
+  for i := 0 to StartIndex - 1 do
+  begin
+    if StartsText(Key, ExtractFileName(FFileList[i].FileName)) then
+    begin
+      FileListView.ItemIndex := i;
+      ScrollToItem(i);
+      Exit;
+    end;
+  end;
+end;
+
+function TListViewFrame.IndexOfFileName(const FileName: string): Integer;
+var
+  i: Integer;
+
+begin
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    if CompareText(FFileList[i].FileName, FileName) = 0 then
+      Exit(i);
+  end;
+  Result := - 1;
+end;
+
+procedure TListViewFrame.InvertSelection;
+var
+  i: Integer;
+
+begin
+  if FFileList.Count = 0 then
+    Exit;
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
+  FSelectedItems.Clear;
+  for i := 0 to FFileList.Count - 1 do
+  begin
+    FListItemsSelected[i] := not FListItemsSelected[i];
+    if FListItemsSelected[i] then
+      FSelectedItems.Add(FFileList[i]);
+  end;
+  ShowSelectedFileStatus;
+  FileListView.Invalidate;
+end;
+
+procedure TListViewFrame.LoadBookmarks;
+var
+  JSONStr: string;
+  JSONObj: TJSONObject;
+  List: TStringList;
+
+begin
+  List := TStringList.Create;
+  try
+    List.LoadFromFile(ExtractFilePath(Application.ExeName) + 'bookmarks.json',
+      TEncoding.UTF8);
+    JSONStr := List.Text;
+    JSONObj := TJSONObject.ParseJSONValue(JSONStr) as TJSONObject;
+    FBookmarks := TBookmarkCollection.Create;
+    FBookmarks.FromJSON(JSONObj);
+  finally
+    JSONObj.Free;
+    List.Free;
+  end;
+end;
+
+procedure TListViewFrame.LoadConfig;
+var
+  AppSettings: TApplicationSettings;
+  WindowConfig: TWindowConfig;
+  TabSetConfig: TTabSetConfig;
+  JsonPath: string;
+
+begin
+  AppSettings := TApplicationSettings.Create;
+  try
+    JsonPath := ChangeFileExt(Application.ExeName, '_config.json');
+    if FileExists(JsonPath) then
+      AppSettings.LoadFromFile(JsonPath);
+    WindowConfig := AppSettings.WindowConfig;
+    with WindowConfig do
+    begin
+      AddressEdit.Font.Name   := AddressBar.Font.Name;
+      AddressEdit.Font.Size   := AddressBar.Font.Size;
+      AddressEdit.Font.Color  := AddressBar.Colors.Text;
+      AddressEdit.Color       := AddressBar.Colors.Background;
+      FileListView.Font.Name  := ListView.Font.Name;
+      FileListView.Font.Size  := ListView.Font.Size;
+      FileListView.Font.Color := ListView.Colors.Text;
+      FileListView.Color      := ListView.Colors.Background;
+      FListViewColors         := ListView.Colors;
+      SearchEdit.Font.Name    := SearchBox.Font.Name;
+      SearchEdit.Font.Size    := SearchBox.Font.Size;
+      SearchEdit.Font.Color   := SearchBox.Colors.Text;
+      SearchEdit.Color        := SearchBox.Colors.Background;
+    end;
+    TabSetConfig := AppSettings.TabSetConfig;
+    TabSet.Font.Name         := TabSetConfig.Font.Name;
+    TabSet.Font.Size         := TabSetConfig.Font.Size;
+    TabSet.Font.Color        := TabSetConfig.Colors.Text;
+    TabSet.BackgroundColor   := TabSetConfig.Colors.Background;
+    TabSet.SelectedColor     := TabSetConfig.Colors.SelectedColor;
+    TabSet.UnselectedColor   := TabSetConfig.Colors.UnselectedColor;
+    TabSet.SelectedFontColor := TabSetConfig.Colors.SelectedFontColor;
+  finally
+    AppSettings.Free;
+  end;
+end;
+
+procedure TListViewFrame.NewMenuAfterFileCreate(Sender: TMenu;
+  const NewMenuItem: TVirtualShellNewItem; const FileName: string);
+var
+  Index: Integer;
+
+begin
+  Reload;
+  Index := IndexOfFileName(FileName);
+  FileListView.ItemIndex := Index;
+  ScrollToItem(Index);
+  SetImeToAlphabetNumeric(Self.Handle);
+end;
+
+procedure TListViewFrame.NewMenuCreateNewFile(Sender: TMenu;
+  const NewMenuItem: TVirtualShellNewItem; var Path, FileName: string;
+  var Allow: Boolean);
+var
+  p: TPoint;
+  NewFileName: string;
+  NewFilePath: string;
+
+begin
+  InputForm.Init('新しいファイルの作成', 'ファイル名',
+    NewMenuItem.FileType + NewMenuItem.Extension);
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  InputForm.Left := p.X;
+  InputForm.Top  := p.Y;
+  InputForm.ShowModal;
+  if InputForm.IsCancel then
+    Exit;
+  NewFileName := InputForm.InputText;
+  Path := FCurrentDirectory;
+  FileName := NewFileName;
+  NewFilePath := TPath.Combine(Path, FileName);
+  if FileExists(NewFilePath) then
+  begin
+    NewFilePath := GetUniqueFileName(NewFilePath);
+    Path := ExtractFilePath(NewFilePath);
+    FileName := ExtractFileName(NewFilePath);
+    MainForm.AddOperationHistory('指定したファイル名は既に存在するので変更しました');
+  end;
+  MainForm.AddOperationHistory(
+    Format('新規ファイルを作成しました [ %s ]', [NewFilePath]));
+end;
+
+procedure TListViewFrame.OnCopyWorkerTerminated(Sender: TObject);
+begin
+  if not FCopyWorker.Cancelled then
+  begin
+    MainForm.AddOperationHistory('終了しました');
+    MainForm.ReloadUnfocusedFrame;
+    if FCopyWorker.MoveMode then
+      Reload;
+  end else
+    MainForm.AddOperationHistory('キャンセルされました');
+  MainForm.ProgressBar.Position := 0;
+  FCopyWorker := nil;
+end;
+
+procedure TListViewFrame.OnDeleteWorkerTerminated(Sender: TObject);
+begin
+  if not FDeleteWorker.Cancelled then
+  begin
+    MainForm.AddOperationHistory('終了しました');
+    Reload;
+  end else
+    MainForm.AddOperationHistory('キャンセルされました');
+  MainForm.ProgressBar.Position := 0;
+  FDeleteWorker := nil;
+end;
+
+procedure TListViewFrame.OpenCurrentDirInNewTab;
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  Path := FCurrentDirectory;
+  TabInfo.Path := Path;
+  TabInfo.ItemIndex := 0;
+  AddTab(TabInfo);
+  ChangeDirectory(Path);
+end;
+
+procedure TListViewFrame.OpenInNewTab;
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
+  Path := CurrentLineItemPath;
+  if TDirectory.Exists(Path) then
+  begin
+    FileListView.ItemIndex := 0;
+    TabInfo.Path := Path;
+    TabInfo.ItemIndex := TabSet.TabIndex;
+    AddTab(TabInfo);
+    ChangeDirectory(Path);
+  end;
+end;
+
+procedure TListViewFrame.OpenItem;
+var
+  Path: string;
+  TabInfo: TTabInfo;
+
+begin
+  Path := CurrentLineItemPath;
+  if Path = PARENT_DIR then
+    GoToParentDirectory
+  else
+  if TDirectory.Exists(Path) then
+  begin
+    FileListView.ItemIndex := 0;
+    TabInfo.Path := Path;
+    TabInfo.ItemIndex := TabSet.TabIndex;
+    FTabList.Change(TabInfo, TabSet.TabIndex);
+    UpdateTab(TabInfo);
+    ChangeDirectory(Path);
+  end else
+  if FileExists(Path) then
+    ExecuteFile(Path);
+end;
+
+procedure TListViewFrame.OpenWithCommandPrompt;
+begin
+  ShellExecute(Handle, 'cmd', PChar(FCurrentDirectory), '',
+    PChar(FCurrentDirectory), SW_SHOWNORMAL);
+end;
+
+procedure TListViewFrame.OpenWithExplorer;
+begin
+  ShellExecute(Handle, 'explore', PChar(FCurrentDirectory), '',
+    PChar(ExtractFilePath(Application.ExeName)), SW_SHOWNORMAL);
+end;
+
+function TListViewFrame.OverwritePromptEvent(const SrcFile: string;
+  var DestFile: string): TOverwritePromptResult;
+var
+  p: TPoint;
+
+begin
+  // TCopyWorker に渡す上書き確認メソッド
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  ConfirmForm := TConfirmForm.Create(Self);
+  try
+    ConfirmForm.Left := p.X;
+    ConfirmForm.Top  := p.Y;
+    ConfirmForm.Init(SrcFile, DestFile);
+    ConfirmForm.ShowModal;
+    Result := ConfirmForm.Result;
+  finally
+    ConfirmForm.Free;
+  end;
+end;
+
+procedure TListViewFrame.Reload;
+var
+  Index: Integer;
+
+begin
+  Index := FileListView.ItemIndex;
+  ChangeDirectory(FCurrentDirectory);
+  if FileListView.Items.Count = 0 then
+    Exit;
+  if not (Index > FileListView.Items.Count) then
+    Index := 0;
+  ScrolltoItem(Index);
+end;
+
+procedure TListViewFrame.RenameItem;
+var
+  SrcFile: string;
+  DirName: string;
+  NewName, OldName: string;
+  Index: Integer;
+  p: TPoint;
+
+begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
+  if FileListView.ItemIndex = - 1 then
+    Exit;
+  SrcFile := FFileList[FileListView.ItemIndex].FileName;
+  DirName := ExtractFilePath(SrcFile);
+  OldName := ExtractFileName(SrcFile);
+  InputForm.Init('ファイルのリネーム', '新しい名前', OldName);
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  InputForm.Left := p.X;
+  InputForm.Top  := p.Y;
+  InputForm.ShowModal;
+  NewName := InputForm.InputText;
+  SetImeToAlphabetNumeric(Self.Handle);
+  if InputForm.IsCancel then
+  begin
+    MainForm.AddOperationHistory(Format('リネームがキャンセルされました [ %s ]', [SrcFile]));
+    Exit;
+  end;
+  if DoFileOperation(SrcFile, DirName + NewName, foFileRename) then
+  begin
+    Reload;
+    Index := IndexOfFileName(DirName + NewName);
+    FileListView.ItemIndex := Index;
+    ScrollToItem(Index);
+    MainForm.AddOperationHistory(Format('リネームしました [ %s ]', [SrcFile]));
+  end else
+    MainForm.AddOperationHistory(Format('リネームに失敗しました [ %s ]', [SrcFile]));
+end;
+
+procedure TListViewFrame.ScrollToItem(const ItemIndex: Integer);
+begin
+  if FFileList.Count = 0 then
+    Exit;
+  FileListView.ItemIndex := ItemIndex;
+  with FileListView do
+  begin
+    Selected.MakeVisible(False);
+    if Selected <> TopItem then
+      Scroll(0, Selected.Top - TopItem.Top);
+  end;
+end;
+
+procedure TListViewFrame.SearchEditKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  case Key of
+    VK_ESCAPE:
+    begin
+      SetImeToAlphabetNumeric(FileListView.Handle);
+      SearchPanel.Visible := False;
+      FileListView.SetFocus;
+    end;
+    VK_RETURN:
+    begin
+      if FIsFilteringItems then
+        ChangeDirectory(FCurrentDirectory, SearchEdit.Text)
+      else
+      begin
+        SearchPanel.Visible := False;
+        FileListView.SetFocus;
+      end;
+    end;
+  end;
+end;
+
+procedure TListViewFrame.SearchEditKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if not FIsFilteringItems and (SearchEdit.Text <> '') then
+    IncrementalSearch(SearchEdit.Text);
+end;
+
+function TListViewFrame.SelectedItemsArray: TArray<string>;
+var
+  i: Integer;
+
+begin
+  SetLength(Result, FSelectedItems.Count);
+  for i := Low(Result) to High(Result) do
+    Result[i] := FSelectedItems[i].FileName;
+end;
+
+procedure TListViewFrame.SelectItem(const ItemIndex: Integer);
+begin
+  if ItemIndex = - 1 then
+    Exit;
+  if FFileList[ItemIndex].FileName = PARENT_DIR then
+    Exit;
+  FListItemsSelected[ItemIndex] := not FListItemsSelected[ItemIndex];
+  if FListItemsSelected[ItemIndex] then
+    FSelectedItems.Add(FFileList[ItemIndex])
+  else
+    FSelectedItems.Remove(FFileList[ItemIndex]);
+  ShowSelectedFileStatus;
+  if ItemIndex + 1 <> FileListView.items.Count then
+    FileListView.ItemIndex := ItemIndex + 1
+  else
+    FileListView.Invalidate;
+end;
+
+procedure TListViewFrame.ShowBookmarks;
+var
+  p: TPoint;
+
+begin
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  BookmarkMenu.Popup(p.X, p.Y);
+end;
+
+procedure TListViewFrame.ShowContextMenu;
+var
+  p: TPoint;
+  FileName: string;
+  NameSpace: TNamespace;
+
+begin
+  if FileListView.ItemIndex = - 1 then
+    Exit;
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  FileName := FFileList[FileListView.ItemIndex].FileName;
+  NameSpace := TNamespace.CreateFromFileName(FileName);
+  try
+    NameSpace.ShowContextMenu(FileListView, nil, nil, nil, @p);
+  finally
+    NameSpace.Free;
+  end;
+end;
+
+procedure TListViewFrame.ShowCreateNewFileMenu;
+var
+  p: TPoint;
+
+begin
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  NewMenu.Popup(p.X, p.Y);
+end;
+
+procedure TListViewFrame.ShowFilteringBox;
+begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
+  FIsFilteringItems := True;
+  SearchPanel.Visible := True;
+  SearchLabel.Caption := ' Filter : ';
+  SearchEdit.Text := '';
+  SearchEdit.SetFocus;
+end;
+
+procedure TListViewFrame.ShowHistory;
+var
+  Item: TMenuItem;
+  p: TPoint;
+  i: Integer;
+
+begin
+  HistoryMenu.Items.Clear;
+  HistoryImgList.Clear;
+  for i := FExplorerHistory.Count - 1 downto 0 do
+  begin
+    Item := TMenuItem.Create(HistoryMenu);
+    Item.Caption := FExplorerHistory[i];
+    Item.Hint := FExplorerHistory[i];
+    Item.ImageIndex := GetIconIndexForPath(Item.Hint, HistoryImgList);
+    Item.OnClick := HistoryMenuClick;
+    HistoryMenu.Items.Add(Item);
+  end;
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  HistoryMenu.Popup(p.X, p.Y);
+end;
+
+procedure TListViewFrame.ShowSearchBox;
+begin
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
+  FIsFilteringItems := False;
+  SearchPanel.Visible := True;
+  SearchLabel.Caption := ' Search : ';
+  SearchEdit.Text := '';
+  SearchEdit.SetFocus;
+end;
+
+procedure TListViewFrame.ShowSelectedFileStatus;
+var
+  TotalFileSize: Int64;
+  IsContainsFolder: Boolean;
+  CaptionStr: string;
+  i: Integer;
+
+begin
+  SelectedStatusPanel.Caption := '';
+  if FSelectedItems.Count = 0 then
+    Exit;
+  TotalFileSize := 0;
+  IsContainsFolder := False;
+  for i := 0 to FSelectedItems.Count - 1 do
+  begin
+    if FSelectedItems[i].FileAttrib and faDirectory <> 0 then
+      IsContainsFolder := True;
+    TotalFileSize := TotalFileSize + FSelectedItems[i].FileSize;
+  end;
+  CaptionStr := Format('%d 個の項目を選択 ', [FSelectedItems.Count]);
+  if not IsContainsFolder then
+    CaptionStr := CaptionStr + FormatFileSize(TotalFileSize);
+  SelectedStatusPanel.Caption := CaptionStr;
+end;
+
+procedure TListViewFrame.Sort;
+var
+  p: TPoint;
+
+begin
+  if FFileList.Count = 0 then
+    Exit;
+  if FFileList[0].FileName = PARENT_DIR then
+    Exit;
+  p := ClientToScreen(Point(FileListView.Left, FileListView.Top));
+  SortSelectForm.Init(SortSettings);
+  SortSelectForm.Left := p.X;
+  SortSelectForm.Top  := p.Y;
+  SortSelectForm.ShowModal;
+  if not SortSelectForm.IsCancel then
+  begin
+    SortSettings := SortSelectForm.SortSettings;
+    with SortSettings do
+    begin
+      SortColumnIndex := SortIndex;
+      SortColumns[SortColumnIndex] := SortOrder;
+      FFileList.Sort(TComparer<TDataListItem>.Construct(SortFunction));
+    end;
+    FileListView.Invalidate;
+  end;
+end;
+
+procedure TListViewFrame.UpdateTab(const TabInfo: TTabInfo);
+var
+  TabText: string;
+
+begin
+  TabText := ExtractFileName(TabInfo.Path);
+  if TabText = '' then
+    TabText := ExcludeTrailingPathDelimiter(TabInfo.Path);
+  FTabList.Change(TabInfo, TabSet.TabIndex);
+  TabSet.Tabs[TabSet.TabIndex] := TabText;
+end;
+
+procedure TListViewFrame.WMKeyDown(var Msg: TWMKeyDown);
+begin
+  if Msg.CharCode = VK_TAB then
+  begin
+    if TabSet.Tabs.Count > 1 then
+      GotoNextTab;
+    Msg.Result := 1;
+  end;
+end;
+
+{ TTabList }
+
+procedure TTabList.Add(const TabInfo: TTabInfo);
+begin
+  FList.Add(TabInfo);
+end;
+
+procedure TTabList.Change(const TabInfo: TTabInfo; TabIndex: Integer);
+begin
+  Flist[TabIndex] := TabInfo;
+end;
+
+constructor TTabList.Create;
+begin
+  FList := TList<TTabInfo>.Create;
+end;
+
+procedure TTabList.Delete(const Index: Integer);
+begin
+  FList.Delete(Index);
+end;
+
+destructor TTabList.Destroy;
+begin
+  FList.Free;
+  inherited;
+end;
+
+function TTabList.GetItems(Index: Integer): TTabInfo;
+begin
+  Result := FList[Index];
+end;
+
+end.
